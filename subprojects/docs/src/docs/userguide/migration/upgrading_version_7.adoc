@@ -196,7 +196,7 @@ android.experimental.legacyTransform.forceNonIncremental=true
 
 Previously, `org.gradle.api.AntBuilder` extended the deprecated `groovy.util.AntBuilder` class.  It now extends `groovy.ant.AntBuilder`.
 
-==== PluginDeclaration is not serializable
+==== `PluginDeclaration` is not serializable
 
 `org.gradle.plugin.devel.PluginDeclaration` is not serializable anymore.
 If you need to serialize it, you can convert it into your own, serializable class.
@@ -250,6 +250,16 @@ In precompiled script plugins, type safe Kotlin DSL accessor generation now fail
 Starting in Gradle 7.6, builds could enable this behavior with the `org.gradle.kotlin.dsl.precompiled.accessors.strict` system property. This behavior is now default. The property has been deprecated and its usage should be removed. You can find more information about this property <<upgrading_version_7.adoc#strict-kotlin-dsl-precompiled-scripts-accessors, below>>.
 
 ==== Adding `jst.ejb` with the `eclipse wtp` plugin now removes the `jst.utility` facet
+
+==== Init scripts are applied to `buildSrc` builds
+
+TODO - init script specified using `--init-script` are now applied to `buildSrc` builds. This behaviour is now consistent for buildSrc and included builds
+
+==== `buildFinished { }` hook for `buildSrc` runs after task execution
+
+TODO - this is consistent with included builds
+
+==== Adding `jst.ejb` with the `eclipse wtp' plugin now removes the `jst.utility` facet
 
 The `eclipse wtp` plugin adds the `jst.utility` facet to java projects.
 Now, adding the `jst.ejb` facet implicitly removes the `jst.utility` facet:
@@ -675,7 +685,7 @@ If you are using TestNG, versions prior to `5.14.6` perform illegal reflection. 
 
 The <<checkstyle_plugin.adoc#checkstyle_plugin,Checkstyle plugin>> now uses the Gradle worker API to run Checkstyle as an external worker process. Multiple Checkstyle tasks may now run in parallel within a project.
 
-Some projects will need to increase the amount of memory available to Checkstyle to avoid out of memory errors. You can <<checkstyle_plugin.adoc#sec:checkstyle_customize_memory,increase the maximum memory for the Checkstyle process>> by setting the `maxHeapSize` for the Checkstyle task. By default, the process will start with a maximum heap size of 512MB. 
+Some projects will need to increase the amount of memory available to Checkstyle to avoid out of memory errors. You can <<checkstyle_plugin.adoc#sec:checkstyle_customize_memory,increase the maximum memory for the Checkstyle process>> by setting the `maxHeapSize` for the Checkstyle task. By default, the process will start with a maximum heap size of 512MB.
 
 We also recommend to update Checkstyle to version 9.3 or later.
 

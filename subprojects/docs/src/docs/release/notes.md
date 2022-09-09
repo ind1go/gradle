@@ -128,6 +128,12 @@ You can now use the `export-keys` flag to export all already trusted keys:
 
 For more information, see [Exporting keys](userguide/dependency_verification.html#sec:local-keyring).
 
+#### Run `buildSrc` tasks
+TODO - Can now run the tasks of `buildSrc` from the command-line, using the same syntax as tasks of included builds, eg `gradle buildSrc:build`.
+
+### Init scripts are applied to `buildSrc`
+TODO - init scripts are applied to `buildSrc`, which is the same for included builds.
+
 <!-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ADD RELEASE FEATURES ABOVE
 ==========================================================
