@@ -57,7 +57,7 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
                 dependsOn test
                 doLast {
                     assert test.testFramework instanceof ${JUnitTestFramework.canonicalName}
-                    assert configurations.testRuntimeClasspath.files.empty
+                    assert configurations.testRuntimeClasspath.files.size() == 1
                 }
             }
         """
@@ -85,7 +85,7 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
                 dependsOn test
                 doLast {
                     assert test.testFramework instanceof ${JUnitTestFramework.canonicalName}
-                    assert configurations.testRuntimeClasspath.files.size() == 2
+                    assert configurations.testRuntimeClasspath.files.size() == 3
                     assert configurations.testRuntimeClasspath.files.any { it.name == "junit-${DefaultJvmTestSuite.TestingFramework.JUNIT4.getDefaultVersion()}.jar" }
                 }
             }
@@ -114,7 +114,7 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
                 dependsOn test
                 doLast {
                     assert test.testFramework instanceof ${JUnitTestFramework.canonicalName}
-                    assert configurations.testRuntimeClasspath.files.size() == 2
+                    assert configurations.testRuntimeClasspath.files.size() == 3
                     assert configurations.testRuntimeClasspath.files.any { it.name == "junit-4.12.jar" }
                 }
             }
@@ -145,7 +145,7 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
                 dependsOn test
                 doLast {
                     assert test.testFramework instanceof ${JUnitTestFramework.canonicalName}
-                    assert configurations.testRuntimeClasspath.files.size() == 2
+                    assert configurations.testRuntimeClasspath.files.size() == 3
                     assert configurations.testRuntimeClasspath.files.any { it.name == "junit-4.12.jar" }
                 }
             }
@@ -174,7 +174,7 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
                 dependsOn test
                 doLast {
                     assert test.testFramework instanceof ${JUnitPlatformTestFramework.canonicalName}
-                    assert configurations.testRuntimeClasspath.files.size() == 8
+                    assert configurations.testRuntimeClasspath.files.size() == 9
                     assert configurations.testRuntimeClasspath.files.any { it.name =~ /junit-platform-launcher-.*.jar/ }
                     assert configurations.testRuntimeClasspath.files.any { it.name == "junit-jupiter-${DefaultJvmTestSuite.TestingFramework.JUNIT_JUPITER.getDefaultVersion()}.jar" }
                 }
@@ -204,7 +204,7 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
                 dependsOn test
                 doLast {
                     assert test.testFramework instanceof ${JUnitPlatformTestFramework.canonicalName}
-                    assert configurations.testRuntimeClasspath.files.size() == 9
+                    assert configurations.testRuntimeClasspath.files.size() == 10
                     assert configurations.testRuntimeClasspath.files.any { it.name == "junit-jupiter-5.7.2.jar" }
                 }
             }
@@ -235,7 +235,7 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
                 dependsOn test
                 doLast {
                     assert test.testFramework instanceof ${JUnitPlatformTestFramework.canonicalName}
-                    assert configurations.testRuntimeClasspath.files.size() == 9
+                    assert configurations.testRuntimeClasspath.files.size() == 10
                     assert configurations.testRuntimeClasspath.files.any { it.name == "junit-jupiter-5.7.2.jar" }
                 }
             }
