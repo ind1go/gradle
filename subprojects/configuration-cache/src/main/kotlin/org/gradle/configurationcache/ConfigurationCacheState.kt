@@ -282,7 +282,8 @@ class ConfigurationCacheState(
         return CachedBuildState(build, workGraph, nestedBuilds)
     }
 
-    private fun DefaultWriteContext.writeSourceDependencies(gradle: GradleInternal) {
+    private
+    fun DefaultWriteContext.writeSourceDependencies(gradle: GradleInternal) {
         if (gradle.serviceOf<VcsMappingsStore>().asResolver().hasRules()) {
             logNotImplemented(
                 feature = "source dependencies",
@@ -294,7 +295,8 @@ class ConfigurationCacheState(
         }
     }
 
-    private fun DefaultReadContext.readSourceDependencies() {
+    private
+    fun DefaultReadContext.readSourceDependencies() {
         if (readBoolean()) {
             logNotImplemented(
                 feature = "source dependencies",
@@ -310,7 +312,7 @@ class ConfigurationCacheState(
     )
 
     private
-    fun <T: Any> withLoadBuildOperation(gradle: GradleInternal, preparer: () -> T): T {
+    fun <T : Any> withLoadBuildOperation(gradle: GradleInternal, preparer: () -> T): T {
         contract {
             callsInPlace(preparer, InvocationKind.EXACTLY_ONCE)
         }
@@ -754,7 +756,7 @@ class ConfigurationCacheState(
      * Fires build operation required by build scan to determine startup duration and settings evaluated duration.
      */
     private
-    fun <T: Any> fireLoadBuild(preparer: () -> T, gradle: GradleInternal): T {
+    fun <T : Any> fireLoadBuild(preparer: () -> T, gradle: GradleInternal): T {
         lateinit var result: T
         BuildOperationFiringSettingsPreparer(
             { result = preparer() },
