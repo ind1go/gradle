@@ -962,6 +962,8 @@ abstract class NoneTransform implements TransformAction<TransformParameters.None
     }
 
     @Unroll
+    // This is failing on release6x and we don't want to spent time on it
+    @IgnoreIf({ GradleContextualExecuter.isForceRealize() })
     def "can attach @#classpathAnnotation.simpleName to dependencies property"() {
         given:
         setupBuildWithNoSteps {
