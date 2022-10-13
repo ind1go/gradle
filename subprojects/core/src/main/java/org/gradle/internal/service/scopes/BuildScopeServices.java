@@ -534,10 +534,8 @@ public class BuildScopeServices extends DefaultServiceRegistry {
     protected ProjectsPreparer createBuildConfigurer(
         ProjectConfigurer projectConfigurer,
         BuildSourceBuilder buildSourceBuilder,
-        BuildStateRegistry buildStateRegistry,
         BuildInclusionCoordinator inclusionCoordinator,
         BuildLoader buildLoader,
-        ListenerManager listenerManager,
         BuildOperationExecutor buildOperationExecutor,
         BuildModelParameters buildModelParameters
     ) {
@@ -546,8 +544,7 @@ public class BuildScopeServices extends DefaultServiceRegistry {
                 new DefaultProjectsPreparer(
                     projectConfigurer,
                     buildModelParameters,
-                    buildOperationExecutor,
-                    buildStateRegistry),
+                    buildOperationExecutor),
                 buildLoader,
                 inclusionCoordinator,
                 buildSourceBuilder),
