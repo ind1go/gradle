@@ -129,13 +129,24 @@ You can now use the `export-keys` flag to export all already trusted keys:
 For more information, see [Exporting keys](userguide/dependency_verification.html#sec:local-keyring).
 
 #### Run `buildSrc` tasks
+#### Improvements for `buildSrc`
+
+TODO - The `buildSrc` build now behaves similarly to an implicit 'plugins' build
+
+#### Run `buildSrc` tasks directly
 TODO - Can now run the tasks of `buildSrc` from the command-line, using the same syntax as tasks of included builds, eg `gradle buildSrc:build`.
 
 #### `buildSrc` can include other builds
-TODO - can include builds in `buildSrc` - via `pluginsManagement { includeBuild() }` or `includeBuild()`
+TODO - can include builds in `buildSrc` - via `pluginsManagement { includeBuild(path) }` or `includeBuild(path)`
+
+#### Tests for `buildSrc` are not automatically run
+TODO - 
 
 #### Init scripts are applied to `buildSrc`
 TODO - init scripts are applied to `buildSrc`, which is the same for included builds.
+
+#### Consistent dependency resolution for included builds and `buildSrc`
+TODO - 
 
 <!-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ADD RELEASE FEATURES ABOVE
