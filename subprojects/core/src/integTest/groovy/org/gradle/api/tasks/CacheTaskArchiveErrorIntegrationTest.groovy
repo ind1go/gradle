@@ -42,6 +42,7 @@ class CacheTaskArchiveErrorIntegrationTest extends AbstractIntegrationSpec {
 
     def "fails build when packing archive fails"() {
         when:
+        assert false
         file("input.txt") << "data"
 
         // Just a way to induce a packing error, i.e. corrupt/partial archive
