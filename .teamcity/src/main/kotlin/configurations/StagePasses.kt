@@ -91,7 +91,7 @@ fun <T : BaseGradleBuildType> Dependencies.snapshotDependencies(buildTypes: Iter
                     onDependencyFailure = FailureAction.IGNORE
                     onDependencyCancel = FailureAction.IGNORE
                 } else {
-                    onDependencyFailure = FailureAction.ADD_PROBLEM
+                    onDependencyFailure = FailureAction.FAIL_TO_START
                     onDependencyCancel = FailureAction.FAIL_TO_START
                 }
                 snapshotConfig(buildType)
