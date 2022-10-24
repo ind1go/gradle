@@ -8,8 +8,15 @@ gradlebuildJava.usedInWorkers()
 
 dependencies {
     api(project(":logging-api"))
+    api(project(":build-operations"))
 
-    implementation(project(":build-operations"))
-    implementation(project(":base-annotations"))
-    implementation(libs.jsr305)
+    api(libs.jsr305)
+}
+
+dependencyAnalysis {
+    issues {
+        onAny {
+            severity("fail")
+        }
+    }
 }

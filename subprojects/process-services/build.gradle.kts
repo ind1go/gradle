@@ -7,9 +7,12 @@ description = "Process execution abstractions."
 gradlebuildJava.usedInWorkers()
 
 dependencies {
-    implementation(project(":base-services"))
+    api(project(":base-annotations"))
+    api(project(":base-services"))
+    api(project(":messaging"))
 
-    implementation(project(":messaging"))
+    api(libs.jsr305)
+
     implementation(project(":native"))
 
     implementation(libs.slf4jApi)
@@ -23,4 +26,12 @@ dependencies {
 
 packageCycles {
     excludePatterns.add("org/gradle/process/internal/**")
+}
+
+dependencyAnalysis {
+    issues {
+        onAny {
+            severity("fail")
+        }
+    }
 }

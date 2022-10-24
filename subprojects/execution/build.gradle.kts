@@ -5,23 +5,28 @@ plugins {
 description = "Execution engine that takes a unit of work and makes it happen"
 
 dependencies {
-    implementation(project(":base-services"))
-    implementation(project(":build-cache"))
-    implementation(project(":build-cache-packaging"))
-    implementation(project(":core-api"))
-    implementation(project(":functional"))
-    implementation(project(":files"))
-    implementation(project(":logging"))
-    implementation(project(":messaging"))
-    implementation(project(":model-core"))
-    implementation(project(":persistent-cache"))
-    implementation(project(":snapshots"))
+    api(project(":base-annotations"))
+    api(project(":build-cache-base"))
+    api(project(":build-operations"))
+    api(project(":hashing"))
+    api(project(":base-services"))
+    api(project(":build-cache"))
+    api(project(":core-api"))
+    api(project(":functional"))
+    api(project(":files"))
+    api(project(":logging"))
+    api(project(":messaging"))
+    api(project(":model-core"))
+    api(project(":persistent-cache"))
+    api(project(":snapshots"))
 
-    implementation(libs.slf4jApi)
-    implementation(libs.guava)
-    implementation(libs.commonsIo)
+    api(libs.jsr305)
+    api(libs.slf4jApi)
+    api(libs.guava)
+
+    implementation(project(":problems"))
+
     implementation(libs.commonsLang)
-    implementation(libs.inject)
 
     testImplementation(project(":native"))
     testImplementation(project(":logging"))
@@ -29,6 +34,7 @@ dependencies {
     testImplementation(project(":model-core"))
     testImplementation(project(":base-services-groovy"))
     testImplementation(project(":resources"))
+    testImplementation(libs.commonsIo)
     testImplementation(testFixtures(project(":base-services")))
     testImplementation(testFixtures(project(":file-collections")))
     testImplementation(testFixtures(project(":messaging")))
@@ -43,4 +49,12 @@ dependencies {
     testFixturesImplementation(project(":model-core"))
 
     integTestDistributionRuntimeOnly(project(":distributions-core"))
+}
+
+dependencyAnalysis {
+    issues {
+        onAny {
+            severity("fail")
+        }
+    }
 }

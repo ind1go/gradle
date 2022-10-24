@@ -6,21 +6,24 @@ description = "Public and internal 'core' Gradle APIs that are required by other
 
 dependencies {
     api(project(":process-services"))
+    api(project(":base-annotations"))
+    api(project(":logging-api"))
+    api(project(":base-services"))
+    api(project(":files"))
+    api(project(":logging"))
+    api(project(":resources"))
 
-    implementation(project(":base-services"))
+    api(libs.jsr305)
+    api(libs.groovy)
+    api(libs.groovyAnt)
+    api(libs.ant)
+    api(libs.inject)
+
     implementation(project(":base-services-groovy"))
-    implementation(project(":enterprise-operations"))
-    implementation(project(":files"))
-    implementation(project(":logging"))
     implementation(project(":persistent-cache"))
-    implementation(project(":resources"))
 
-    implementation(libs.groovy)
-    implementation(libs.groovyAnt)
-    implementation(libs.ant)
     implementation(libs.guava)
     implementation(libs.commonsLang)
-    implementation(libs.inject)
 
     testImplementation(libs.asm)
     testImplementation(libs.asmCommons)
@@ -42,3 +45,12 @@ strictCompile {
 
 integTest.usesJavadocCodeSnippets.set(true)
 testFilesCleanup.reportOnly.set(true)
+
+dependencyAnalysis {
+    issues {
+        onAny {
+            severity("fail")
+        }
+    }
+}
+

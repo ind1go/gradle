@@ -33,7 +33,7 @@ dependencies {
         api(kotlin("compiler-embeddable")) { version { strictly(kotlinVersion) } }
         api("org.jlleitschuh.gradle:ktlint-gradle:10.3.0")
         api("org.gradle.kotlin:gradle-kotlin-dsl-conventions:0.8.0")
-        api("com.autonomousapps:dependency-analysis-gradle-plugin:0.71.0")
+        api("com.autonomousapps:dependency-analysis-gradle-plugin:1.13.1")
 
         // Java Libraries
         api("com.github.javaparser:javaparser-core:$javaParserVersion")

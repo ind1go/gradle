@@ -6,8 +6,16 @@ description = "Build operations consumed by the Gradle Enterprise plugin"
 
 dependencies {
     api(project(":build-operations"))
-    api(project(":enterprise-workers"))
+
+    api(libs.jsr305)
 
     implementation(project(":base-annotations"))
-    implementation(libs.jsr305)
+}
+
+dependencyAnalysis {
+    issues {
+        onAny {
+            severity("fail")
+        }
+    }
 }

@@ -6,5 +6,15 @@ plugins {
 description = "Tools to work with functional code, including data structures"
 
 dependencies {
+    api(libs.jsr305)
+
     implementation(project(":base-annotations"))
+}
+
+dependencyAnalysis {
+    issues {
+        onAny {
+            severity("fail")
+        }
+    }
 }

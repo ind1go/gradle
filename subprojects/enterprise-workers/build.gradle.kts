@@ -7,6 +7,13 @@ description = "Gradle Enterprise plugin dependencies that also need to be expose
 gradlebuildJava.usedInWorkers()
 
 dependencies {
-    implementation(project(":base-annotations"))
-    implementation(libs.jsr305)
+    api(libs.jsr305)
+}
+
+dependencyAnalysis {
+    issues {
+        onAny {
+            severity("fail")
+        }
+    }
 }

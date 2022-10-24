@@ -17,10 +17,14 @@ tasks.named<JavaCompile>("jmhCompileGeneratedClasses") {
 dependencies {
     api(project(":files"))
 
-    implementation(project(":base-services"))
-    implementation(project(":file-temp"))
+    api(libs.jsr305)
+    api(libs.nativePlatform)
 
-    implementation(libs.nativePlatform)
+    api(project(":base-services"))
+    api(project(":file-temp"))
+
+    implementation(project(":base-annotations"))
+
     implementation(libs.nativePlatformFileEvents)
     implementation(libs.slf4jApi)
     implementation(libs.guava)
@@ -39,4 +43,12 @@ jmh {
     threads.set(2)
     warmupIterations.set(10)
     synchronizeIterations.set(false)
+}
+
+dependencyAnalysis {
+    issues {
+        onAny {
+            severity("fail")
+        }
+    }
 }

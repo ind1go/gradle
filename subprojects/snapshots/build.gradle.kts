@@ -9,9 +9,11 @@ dependencies {
     api(project(":files"))
     api(project(":hashing"))
 
+    api(libs.jsr305)
+    api(libs.guava)
+
     implementation(project(":base-annotations"))
 
-    implementation(libs.guava)
     implementation(libs.slf4jApi)
 
     testImplementation(project(":process-services"))
@@ -34,4 +36,12 @@ dependencies {
     testFixturesImplementation(libs.commonsIo)
 
     integTestDistributionRuntimeOnly(project(":distributions-core"))
+}
+
+dependencyAnalysis {
+    issues {
+        onAny {
+            severity("fail")
+        }
+    }
 }
