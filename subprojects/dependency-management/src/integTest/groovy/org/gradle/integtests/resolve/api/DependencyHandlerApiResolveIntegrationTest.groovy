@@ -31,7 +31,7 @@ class DependencyHandlerApiResolveIntegrationTest extends AbstractIntegrationSpec
             apply plugin: 'java'
 
             task resolveLibs(type: Copy) {
-                ext.extractedDir = file("\$buildDir/libs")
+                ext.extractedDir = file("\$buildDir/extracted")
                 from configurations.testCompileClasspath
                 into extractedDir
             }
