@@ -31,6 +31,11 @@ import org.gradle.internal.HasInternalProtocol;
 public
 interface Cleanup {
     /**
+     * Perform cache cleanup after every build session.
+     */
+    Cleanup ALWAYS = new DefaultCleanup(CleanupFrequency.ALWAYS);
+
+    /**
      * Perform cache cleanup periodically (default is only once every 24 hours).
      */
     Cleanup DEFAULT = new DefaultCleanup(CleanupFrequency.DAILY);
