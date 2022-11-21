@@ -62,7 +62,7 @@ class DefaultArtifactTransformsTest extends Specification {
         variant2.attributes >> typeAttributes("jar")
 
         consumerSchema.withProducer(producerSchema) >> attributeMatcher
-        attributeMatcher.matches(variants, typeAttributes("classes"), _ as AttributeMatchingExplanationBuilder) >> [variant1]
+        attributeMatcher.matches(_ as Collection, typeAttributes("classes"), _ as AttributeMatchingExplanationBuilder) >> [variant1]
 
         expect:
         def result = transforms.variantSelector(typeAttributes("classes"), true, false, dependenciesResolver).select(set, factory)
@@ -85,7 +85,7 @@ class DefaultArtifactTransformsTest extends Specification {
         variant2.attributes >> typeAttributes("jar")
 
         consumerSchema.withProducer(producerSchema) >> attributeMatcher
-        attributeMatcher.matches(variants, typeAttributes("classes"), _ as AttributeMatchingExplanationBuilder) >> [variant1, variant2]
+        attributeMatcher.matches(_ as Collection, typeAttributes("classes"), _ as AttributeMatchingExplanationBuilder) >> [variant1, variant2]
         attributeMatcher.isMatching(_, _, _) >> true
 
         when:
@@ -127,8 +127,12 @@ class DefaultArtifactTransformsTest extends Specification {
         consumerSchema.withProducer(producerSchema) >> attributeMatcher
         attributeMatcher.matches(_, _, _) >> []
 
-        matchingCache.collectConsumerVariants(_, _) >> { ImmutableAttributes from, ImmutableAttributes to ->
-            match(to, Stub(TransformationStep), 1)
+        matchingCache.findTransformedVariants(_, _) >> { List<ResolvedVariant> from, ImmutableAttributes to ->
+            def transformed = []
+            for (int i = 0; i < from.size(); i++) {
+                transformed.add(transformedVariant(i, to, 1))
+            }
+            transformed
         }
 
         def selector = transforms.variantSelector(typeAttributes("dll"), true, false, dependenciesResolver)
@@ -167,7 +171,7 @@ Found the following transforms:
         consumerSchema.withProducer(producerSchema) >> attributeMatcher
         attributeMatcher.matches(_, _, _) >> []
 
-        matchingCache.collectConsumerVariants(_, _) >> new MutableConsumerVariantMatchResult(0)
+        matchingCache.findTransformedVariants(_, _) >> []
 
         expect:
         def result = transforms.variantSelector(typeAttributes("dll"), true, false, dependenciesResolver).select(set, factory)
@@ -192,7 +196,7 @@ Found the following transforms:
         consumerSchema.withProducer(producerSchema) >> attributeMatcher
         attributeMatcher.matches(_, _, _) >> []
 
-        matchingCache.collectConsumerVariants(_, _) >> new MutableConsumerVariantMatchResult(0)
+        matchingCache.findTransformedVariants(_, _) >> []
 
         when:
         def result = transforms.variantSelector(typeAttributes("dll"), false, false, dependenciesResolver).select(set, factory)
@@ -221,9 +225,19 @@ Found the following transforms:
         attributeContainer.asImmutable()
     }
 
-    static MutableConsumerVariantMatchResult match(ImmutableAttributes output, TransformationStep trn, int depth) {
-        def result = new MutableConsumerVariantMatchResult(2)
-        result.matched(output, trn, null, depth)
-        result
+    TransformedVariant transformedVariant(int rootIndex, AttributeContainerInternal attributes, int depth) {
+        ImmutableAttributes attrs = attributes.asImmutable()
+        TransformationStep step = Mock(TransformationStep) {
+            getDisplayName() >> ""
+        }
+        if (depth == 1) {
+            return new TransformedVariant(rootIndex, attrs, step)
+        } else {
+            return new TransformedVariant(
+                transformedVariant(rootIndex, attrs, depth - 1),
+                attrs,
+                step
+            )
+        }
     }
 }

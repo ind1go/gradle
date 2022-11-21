@@ -16,22 +16,26 @@
 
 package org.gradle.api.internal.artifacts.transform;
 
-import com.google.common.collect.Maps;
-import org.gradle.api.attributes.AttributeContainer;
 import org.gradle.api.internal.artifacts.ArtifactTransformRegistration;
 import org.gradle.api.internal.artifacts.VariantTransformRegistry;
+import org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact.ResolvedVariant;
 import org.gradle.api.internal.attributes.AttributeContainerInternal;
 import org.gradle.api.internal.attributes.AttributesSchemaInternal;
 import org.gradle.api.internal.attributes.ImmutableAttributes;
 import org.gradle.api.internal.attributes.ImmutableAttributesFactory;
+import org.gradle.internal.collections.ImmutableFilteredList;
 import org.gradle.internal.component.model.AttributeMatcher;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 /**
- * Finds all the variants that can be created from a given producer variant using
+ * Finds all the variants that can be created from a given set of producer variants using
  * the consumer's variant transformations. Transformations can be chained. If multiple
  * chains can lead to the same outcome, the shortest path is selected.
  *
@@ -40,83 +44,194 @@ import java.util.Map;
  */
 public class ConsumerProvidedVariantFinder {
     private final VariantTransformRegistry variantTransforms;
-    private final AttributesSchemaInternal schema;
     private final ImmutableAttributesFactory attributesFactory;
-    private final Map<AttributeContainer, AttributeSpecificCache> attributeSpecificCache = Maps.newConcurrentMap();
+    private final CachingAttributeContainerMatcher matcher;
+    private final TransformationCache transformationCache;
 
-    public ConsumerProvidedVariantFinder(VariantTransformRegistry variantTransforms, AttributesSchemaInternal schema, ImmutableAttributesFactory attributesFactory) {
+    public ConsumerProvidedVariantFinder(
+        VariantTransformRegistry variantTransforms,
+        AttributesSchemaInternal schema,
+        ImmutableAttributesFactory attributesFactory
+    ) {
         this.variantTransforms = variantTransforms;
-        this.schema = schema;
         this.attributesFactory = attributesFactory;
+        this.matcher = new CachingAttributeContainerMatcher(schema.matcher());
+        this.transformationCache = new TransformationCache();
     }
 
-    public ConsumerVariantMatchResult collectConsumerVariants(AttributeContainerInternal actual, AttributeContainerInternal requested) {
-        AttributeSpecificCache toCache = getCache(requested);
-        return toCache.transforms.computeIfAbsent(actual, attrs -> findProducersFor(actual, requested).asImmutable());
+    public List<TransformedVariant> findTransformedVariants(List<ResolvedVariant> sources, ImmutableAttributes requested) {
+        // TODO: Should we cache the transforms too?
+        // This needs performance testing.
+        return transformationCache.cache(sources, requested, (src, req) ->
+            doFindTransformedVariants(src, req, ImmutableFilteredList.allOf(variantTransforms.getTransforms())));
     }
 
-    private MutableConsumerVariantMatchResult findProducersFor(AttributeContainerInternal actual, AttributeContainerInternal requested) {
-        // Prefer direct transformation over indirect transformation
-        List<ArtifactTransformRegistration> candidates = new ArrayList<>();
-        List<ArtifactTransformRegistration> transforms = variantTransforms.getTransforms();
-        int nbOfTransforms = transforms.size();
-        MutableConsumerVariantMatchResult result = new MutableConsumerVariantMatchResult(nbOfTransforms * nbOfTransforms);
-        for (ArtifactTransformRegistration registration : transforms) {
-            if (matchAttributes(registration.getTo(), requested)) {
-                if (matchAttributes(actual, registration.getFrom())) {
-                    ImmutableAttributes variantAttributes = attributesFactory.concat(actual.asImmutable(), registration.getTo().asImmutable());
-                    if (matchAttributes(variantAttributes, requested)) {
-                        result.matched(variantAttributes, registration.getTransformationStep(), null, 1);
+    private List<TransformedVariant> doFindTransformedVariants(
+        List<ImmutableAttributes> sources,
+        ImmutableAttributes requested,
+        ImmutableFilteredList<ArtifactTransformRegistration> transforms
+    ) {
+        // The set of transforms which could potentially produce a variant compatible with `requested`.
+        ImmutableFilteredList<ArtifactTransformRegistration> candidates =
+            transforms.matching(transform -> matcher.isMatching(transform.getTo(), requested));
+
+        AttributeGroupingVariantCollector result = new AttributeGroupingVariantCollector();
+
+        // For each candidate, attempt to find a source variant that the transformation can use as its root.
+        for (ArtifactTransformRegistration candidate : candidates) {
+            for (int i = 0; i < sources.size(); i++) {
+                ImmutableAttributes sourceAttrs = sources.get(i);
+                if (matcher.isMatching(sourceAttrs, candidate.getFrom())) {
+                    ImmutableAttributes variantAttributes = attributesFactory.concat(sourceAttrs, candidate.getTo());
+                    if (matcher.isMatching(variantAttributes, requested)) {
+                        result.matched(new TransformedVariant(i, variantAttributes, candidate.getTransformationStep()));
                     }
                 }
-                candidates.add(registration);
             }
         }
+
+        // If we found a compatible root transform, return it.
         if (result.hasMatches()) {
-            return result;
+            return result.getMatches();
         }
 
-        for (ArtifactTransformRegistration candidate : candidates) {
-            AttributeContainerInternal requestedPrevious = computeRequestedAttributes(requested, candidate);
-            ConsumerVariantMatchResult inputVariants = collectConsumerVariants(actual, requestedPrevious);
-            if (!inputVariants.hasMatches()) {
-                continue;
+        // Otherwise, for each candidate, attempt to find another chain of transforms which match it's `from` attributes.
+        for (int i = 0; i < candidates.size(); i++) {
+            ArtifactTransformRegistration candidate = candidates.get(i);
+
+            ImmutableFilteredList<ArtifactTransformRegistration> newTransforms = transforms.withoutIndexFrom(i, candidates);
+            ImmutableAttributes requestedPrevious = attributesFactory.concat(requested, candidate.getFrom());
+            List<TransformedVariant> inputVariants = doFindTransformedVariants(sources, requestedPrevious, newTransforms);
+
+            for (TransformedVariant inputVariant : inputVariants) {
+                ImmutableAttributes variantAttributes = attributesFactory.concat(inputVariant.getAttributes().asImmutable(), candidate.getTo());
+                result.matched(new TransformedVariant(inputVariant, variantAttributes, candidate.getTransformationStep()));
             }
-            for (MutableConsumerVariantMatchResult.ConsumerVariant inputVariant : inputVariants.getMatches()) {
-                ImmutableAttributes variantAttributes = attributesFactory.concat(inputVariant.attributes.asImmutable(), candidate.getTo().asImmutable());
-                result.matched(variantAttributes, candidate.getTransformationStep(), inputVariant, inputVariant.depth + 1);
+        }
+
+        return result.getMatches();
+    }
+
+    /**
+     * Collects {@link TransformedVariant}s, grouping them by their attributes. For a given attribute set, only the variants
+     * with the smallest transform depth are saved.
+     */
+    private static class AttributeGroupingVariantCollector {
+
+        private final Map<AttributeContainerInternal, List<TransformedVariant>> matches = new LinkedHashMap<>(1);
+
+        public void matched(TransformedVariant variant) {
+            List<TransformedVariant> group = matches.computeIfAbsent(variant.getAttributes(), attrs -> new ArrayList<>(1));
+
+            if (group.isEmpty()) {
+                group.add(variant);
+            } else {
+                // All variants in a group have the same depth.
+                int depth = group.get(0).getDepth();
+                if (variant.getDepth() == depth){
+                    group.add(variant);
+                } else if (variant.getDepth() < depth) {
+                    group.clear();
+                    group.add(variant);
+                }
             }
         }
-        return result;
-    }
 
-    private AttributeContainerInternal computeRequestedAttributes(AttributeContainerInternal result, ArtifactTransformRegistration transform) {
-        return attributesFactory.concat(result.asImmutable(), transform.getFrom().asImmutable()).asImmutable();
-    }
-
-    private AttributeSpecificCache getCache(AttributeContainer attributes) {
-        AttributeSpecificCache cache = attributeSpecificCache.get(attributes);
-        if (cache == null) {
-            cache = new AttributeSpecificCache();
-            attributeSpecificCache.put(attributes, cache);
+        public boolean hasMatches() {
+            return matches.values().stream().anyMatch(group -> !group.isEmpty());
         }
-        return cache;
-    }
 
-    private boolean matchAttributes(AttributeContainerInternal actual, AttributeContainerInternal requested) {
-        AttributeMatcher schemaToMatchOn = schema.matcher();
-        Map<AttributeContainer, Boolean> cache = getCache(requested).ignoreExtraActual;
-        Boolean match = cache.get(actual);
-        if (match == null) {
-            match = schemaToMatchOn.isMatching(actual, requested);
-            cache.put(actual, match);
+        public List<TransformedVariant> getMatches() {
+            return matches.values().stream().flatMap(List::stream).collect(Collectors.toList());
         }
-        return match;
     }
 
-    private static class AttributeSpecificCache {
-        private final Map<AttributeContainer, Boolean> ignoreExtraActual = Maps.newConcurrentMap();
-        private final Map<AttributeContainer, ConsumerVariantMatchResult> transforms = Maps.newConcurrentMap();
+    private static class TransformationCache {
+        private final ConcurrentHashMap<CacheKey, List<TransformedVariant>> cache = new ConcurrentHashMap<>();
+
+        private List<TransformedVariant> cache(
+            List<ResolvedVariant> sources, ImmutableAttributes requested,
+            BiFunction<List<ImmutableAttributes>, ImmutableAttributes, List<TransformedVariant>> action
+        ) {
+            ArrayList<ImmutableAttributes> variantAttributes = new ArrayList<>(sources.size());
+            for (ResolvedVariant variant : sources) {
+                variantAttributes.add(variant.getAttributes().asImmutable());
+            }
+            return cache.computeIfAbsent(new CacheKey(variantAttributes, requested), key -> action.apply(key.variantAttributes, key.requested));
+        }
+
+        private static class CacheKey {
+            private final List<ImmutableAttributes> variantAttributes;
+            private final ImmutableAttributes requested;
+            private final int hashCode;
+
+            public CacheKey(List<ImmutableAttributes> variantAttributes, ImmutableAttributes requested) {
+                this.variantAttributes = variantAttributes;
+                this.requested = requested;
+                this.hashCode = variantAttributes.hashCode() ^ requested.hashCode();
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) {
+                    return true;
+                }
+                if (o == null || getClass() != o.getClass()) {
+                    return false;
+                }
+                CacheKey cacheKey = (CacheKey) o;
+                return variantAttributes.equals(cacheKey.variantAttributes) && requested.equals(cacheKey.requested);
+            }
+
+            @Override
+            public int hashCode() {
+                return hashCode;
+            }
+        }
     }
 
+    /**
+     * Caches calls to {@link AttributeMatcher#isMatching(AttributeContainerInternal, AttributeContainerInternal)}
+     */
+    private static class CachingAttributeContainerMatcher {
+        private final AttributeMatcher matcher;
+        private final ConcurrentHashMap<CacheKey, Boolean> cache = new ConcurrentHashMap<>();
+
+        public CachingAttributeContainerMatcher(AttributeMatcher matcher) {
+            this.matcher = matcher;
+        }
+
+        public boolean isMatching(AttributeContainerInternal candidate, AttributeContainerInternal requested) {
+            return cache.computeIfAbsent(new CacheKey(candidate, requested), key -> matcher.isMatching(key.candidate, key.requested));
+        }
+
+        private static class CacheKey {
+            private final AttributeContainerInternal candidate;
+            private final AttributeContainerInternal requested;
+            private final int hashCode;
+
+            public CacheKey(AttributeContainerInternal candidate, AttributeContainerInternal requested) {
+                this.candidate = candidate;
+                this.requested = requested;
+                this.hashCode = candidate.hashCode() ^ requested.hashCode();
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) {
+                    return true;
+                }
+                if (o == null || getClass() != o.getClass()) {
+                    return false;
+                }
+                CacheKey cacheKey = (CacheKey) o;
+                return candidate.equals(cacheKey.candidate) && requested.equals(cacheKey.requested);
+            }
+
+            @Override
+            public int hashCode() {
+                return hashCode;
+            }
+        }
+    }
 }
