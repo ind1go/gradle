@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 the original author or authors.
+ * Copyright 2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,15 @@
  * limitations under the License.
  */
 
-package org.gradle.internal.util;
+package org.gradle.jvm.toolchain.internal;
 
-public interface BiFunction<O, A, B> {
+import org.gradle.internal.jvm.inspection.JvmInstallationMetadata;
 
-    O apply(A a, B b);
+import java.util.Optional;
 
+public interface JavaToolchainInstantiationResult {
+
+    JvmInstallationMetadata metadata();
+
+    Optional<JavaToolchain> toolchain();
 }
