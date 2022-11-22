@@ -99,7 +99,7 @@ public class TransformedVariant implements VariantDefinition, HasAttributes {
     }
 
     @Override
-    public AttributeContainerInternal getAttributes() {
+    public ImmutableAttributes getAttributes() {
         return attributes;
     }
 

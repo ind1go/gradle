@@ -38,11 +38,7 @@ import org.gradle.internal.component.model.AttributeMatcher;
 import org.gradle.internal.component.model.AttributeMatchingExplanationBuilder;
 import org.gradle.internal.component.model.DescriberSelector;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 class AttributeMatchingVariantSelector implements VariantSelector {
@@ -122,9 +118,10 @@ class AttributeMatchingVariantSelector implements VariantSelector {
         // We found no matches. Attempt to construct artifact transform chains which produce matching variants.
         List<TransformedVariant> transformedVariants = consumerProvidedVariantFinder.findTransformedVariants(variants, componentRequested);
 
-        // If we have multiple potential artifact transform variants which can match our requested attributes, attempt to choose the best.
+        // If there are multiple potential artifact transform variants, perform attribute matching to attempt to find the best.
         if (transformedVariants.size() > 1) {
-            transformedVariants = findBestTransformChains(matcher, transformedVariants, componentRequested, explanationBuilder);
+            List<TransformedVariant> transformedMatches = matcher.matches(transformedVariants, componentRequested, explanationBuilder);
+            transformedVariants = transformedMatches.size() > 0 ? transformedMatches : transformedVariants;
         }
 
         if (transformedVariants.size() == 1) {
@@ -142,78 +139,6 @@ class AttributeMatchingVariantSelector implements VariantSelector {
         }
 
         throw new NoMatchingVariantSelectionException(producer.asDescribable().getDisplayName(), componentRequested, variants, matcher, DescriberSelector.selectDescriber(componentRequested, schema));
-    }
-
-    private List<TransformedVariant> findBestTransformChains(AttributeMatcher matcher, List<TransformedVariant> candidates, ImmutableAttributes componentRequested, AttributeMatchingExplanationBuilder explanationBuilder) {
-        // Perform attribute matching against the potential transformed variant candidates.
-        // One of the potential transform chains may produce a more preferable variant compared to another.
-        candidates = disambiguateWithSchema(matcher, candidates, componentRequested, explanationBuilder);
-
-        if (candidates.size() == 1) {
-            return candidates;
-        }
-
-        if (candidates.size() == 2) {
-            // Short circuit logic when only 2 candidates
-            return compareCandidates(matcher, candidates.get(0), candidates.get(1))
-                .map(Collections::singletonList)
-                .orElse(candidates);
-        }
-
-        List<TransformedVariant> shortestTransforms = new ArrayList<>(candidates.size());
-        candidates = new ArrayList<>(candidates);
-        candidates.sort(Comparator.comparingInt(TransformedVariant::getDepth));
-
-        // Need to remember if a further element was matched by an earlier one, no need to consider it then
-        boolean[] hasBetterMatch = new boolean[candidates.size()];
-
-        for (int i = 0; i < candidates.size(); i++) {
-            if (hasBetterMatch[i]) {
-                continue;
-            }
-            boolean candidateIsDifferent = true;
-            TransformedVariant current = candidates.get(i);
-            for (int j = i + 1; j < candidates.size(); j++) {
-                if (hasBetterMatch[j]) {
-                    continue;
-                }
-                int index = j; // Needed to use inside lambda below
-                candidateIsDifferent = compareCandidates(matcher, current, candidates.get(index)).map(candidate -> {
-                    if (candidate != current) {
-                        // The other is better, current is not part of result
-                        return false;
-                    } else {
-                        // The other is disambiguated by current, never consider other again
-                        hasBetterMatch[index] = true;
-                    }
-                    return true;
-                }).orElse(true);
-            }
-            if (candidateIsDifferent) {
-                shortestTransforms.add(current);
-            }
-        }
-        return shortestTransforms;
-    }
-
-    private List<TransformedVariant> disambiguateWithSchema(AttributeMatcher matcher, List<TransformedVariant> candidates, ImmutableAttributes componentRequested, AttributeMatchingExplanationBuilder explanationBuilder) {
-        List<TransformedVariant> matches = matcher.matches(candidates, componentRequested, explanationBuilder);
-        if (matches.size() > 0) {
-            return matches;
-        }
-        return candidates;
-    }
-
-    private Optional<TransformedVariant> compareCandidates(AttributeMatcher matcher, TransformedVariant firstCandidate, TransformedVariant secondCandidate) {
-        if (matcher.isMatching(firstCandidate.getAttributes(), secondCandidate.getAttributes()) ||
-            matcher.isMatching(secondCandidate.getAttributes(), firstCandidate.getAttributes())) {
-            if (firstCandidate.getDepth() >= secondCandidate.getDepth()) {
-                return Optional.of(secondCandidate);
-            } else {
-                return Optional.of(firstCandidate);
-            }
-        }
-        return Optional.empty();
     }
 
     private static class TraceDiscardedVariants implements AttributeMatchingExplanationBuilder {

@@ -26,13 +26,13 @@ import org.gradle.api.internal.attributes.ImmutableAttributesFactory;
 import org.gradle.internal.collections.ImmutableFilteredList;
 import org.gradle.internal.component.model.AttributeMatcher;
 
+import javax.annotation.Nullable;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
-import java.util.stream.Collectors;
 
 /**
  * Finds all the variants that can be created from a given set of producer variants using
@@ -60,10 +60,28 @@ public class ConsumerProvidedVariantFinder {
     }
 
     public List<TransformedVariant> findTransformedVariants(List<ResolvedVariant> sources, ImmutableAttributes requested) {
-        // TODO: Should we cache the transforms too?
-        // This needs performance testing.
         return transformationCache.cache(sources, requested, (src, req) ->
             doFindTransformedVariants(src, req, ImmutableFilteredList.allOf(variantTransforms.getTransforms())));
+    }
+
+    static class ChainNode {
+        final ChainNode next;
+        final ArtifactTransformRegistration transform;
+        public ChainNode(@Nullable ChainNode next, ArtifactTransformRegistration transform) {
+            this.next = next;
+            this.transform = transform;
+        }
+    }
+
+    static class ChainState {
+        final ChainNode chain;
+        final ImmutableAttributes requested;
+        final ImmutableFilteredList<ArtifactTransformRegistration> transforms;
+        public ChainState(@Nullable ChainNode chain, ImmutableAttributes requested, ImmutableFilteredList<ArtifactTransformRegistration> transforms) {
+            this.chain = chain;
+            this.requested = requested;
+            this.transforms = transforms;
+        }
     }
 
     private List<TransformedVariant> doFindTransformedVariants(
@@ -71,79 +89,64 @@ public class ConsumerProvidedVariantFinder {
         ImmutableAttributes requested,
         ImmutableFilteredList<ArtifactTransformRegistration> transforms
     ) {
-        // The set of transforms which could potentially produce a variant compatible with `requested`.
-        ImmutableFilteredList<ArtifactTransformRegistration> candidates =
-            transforms.matching(transform -> matcher.isMatching(transform.getTo(), requested));
+        Queue<ChainState> toProcess = new ArrayDeque<>();
+        toProcess.add(new ChainState(null, requested, transforms));
 
-        AttributeGroupingVariantCollector result = new AttributeGroupingVariantCollector();
+        Queue<ChainState> nextLevel = new ArrayDeque<>();
+        List<TransformedVariant> results = new ArrayList<>(1);
 
-        // For each candidate, attempt to find a source variant that the transformation can use as its root.
-        for (ArtifactTransformRegistration candidate : candidates) {
-            for (int i = 0; i < sources.size(); i++) {
-                ImmutableAttributes sourceAttrs = sources.get(i);
-                if (matcher.isMatching(sourceAttrs, candidate.getFrom())) {
-                    ImmutableAttributes variantAttributes = attributesFactory.concat(sourceAttrs, candidate.getTo());
-                    if (matcher.isMatching(variantAttributes, requested)) {
-                        result.matched(new TransformedVariant(i, variantAttributes, candidate.getTransformationStep()));
+        while (results.isEmpty() && !toProcess.isEmpty()) {
+            while (!toProcess.isEmpty()) {
+                // The set of transforms which could potentially produce a variant compatible with `requested`.
+                ChainState state = toProcess.poll();
+                ImmutableFilteredList<ArtifactTransformRegistration> candidates =
+                    state.transforms.matching(transform -> matcher.isMatching(transform.getTo(), state.requested));
+
+                // For each candidate, attempt to find a source variant that the transformation can use as its root.
+                for (ArtifactTransformRegistration candidate : candidates) {
+                    for (int i = 0; i < sources.size(); i++) {
+                        ImmutableAttributes sourceAttrs = sources.get(i);
+                        if (matcher.isMatching(sourceAttrs, candidate.getFrom())) {
+                            ImmutableAttributes rootAttrs = attributesFactory.concat(sourceAttrs, candidate.getTo());
+                            if (matcher.isMatching(rootAttrs, state.requested)) {
+
+                                TransformedVariant out = new TransformedVariant(i, rootAttrs, candidate.getTransformationStep());
+
+                                ChainNode node = state.chain;
+                                while (node != null) {
+                                    ImmutableAttributes variantAttributes = attributesFactory.concat(out.getAttributes(), node.transform.getTo());
+                                    out = new TransformedVariant(out, variantAttributes, node.transform.getTransformationStep());
+                                    node = node.next;
+                                }
+
+                                results.add(out);
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        // If we found a compatible root transform, return it.
-        if (result.hasMatches()) {
-            return result.getMatches();
-        }
+                // If we have a result at this level, don't bother building the next level's states.
+                if (!results.isEmpty()) {
+                    continue;
+                }
 
-        // Otherwise, for each candidate, attempt to find another chain of transforms which match it's `from` attributes.
-        for (int i = 0; i < candidates.size(); i++) {
-            ArtifactTransformRegistration candidate = candidates.get(i);
-
-            ImmutableFilteredList<ArtifactTransformRegistration> newTransforms = transforms.withoutIndexFrom(i, candidates);
-            ImmutableAttributes requestedPrevious = attributesFactory.concat(requested, candidate.getFrom());
-            List<TransformedVariant> inputVariants = doFindTransformedVariants(sources, requestedPrevious, newTransforms);
-
-            for (TransformedVariant inputVariant : inputVariants) {
-                ImmutableAttributes variantAttributes = attributesFactory.concat(inputVariant.getAttributes().asImmutable(), candidate.getTo());
-                result.matched(new TransformedVariant(inputVariant, variantAttributes, candidate.getTransformationStep()));
-            }
-        }
-
-        return result.getMatches();
-    }
-
-    /**
-     * Collects {@link TransformedVariant}s, grouping them by their attributes. For a given attribute set, only the variants
-     * with the smallest transform depth are saved.
-     */
-    private static class AttributeGroupingVariantCollector {
-
-        private final Map<AttributeContainerInternal, List<TransformedVariant>> matches = new LinkedHashMap<>(1);
-
-        public void matched(TransformedVariant variant) {
-            List<TransformedVariant> group = matches.computeIfAbsent(variant.getAttributes(), attrs -> new ArrayList<>(1));
-
-            if (group.isEmpty()) {
-                group.add(variant);
-            } else {
-                // All variants in a group have the same depth.
-                int depth = group.get(0).getDepth();
-                if (variant.getDepth() == depth){
-                    group.add(variant);
-                } else if (variant.getDepth() < depth) {
-                    group.clear();
-                    group.add(variant);
+                // If we can't find any solutions at this level, construct new states for processing at the next depth.
+                for (int i = 0; i < candidates.size(); i++) {
+                    ArtifactTransformRegistration candidate = candidates.get(i);
+                    nextLevel.add(new ChainState(
+                        new ChainNode(state.chain, candidate),
+                        attributesFactory.concat(state.requested, candidate.getFrom()),
+                        state.transforms.withoutIndexFrom(i, candidates)
+                    ));
                 }
             }
+
+            Queue<ChainState> tmp = toProcess;
+            toProcess = nextLevel;
+            nextLevel = tmp;
         }
 
-        public boolean hasMatches() {
-            return matches.values().stream().anyMatch(group -> !group.isEmpty());
-        }
-
-        public List<TransformedVariant> getMatches() {
-            return matches.values().stream().flatMap(List::stream).collect(Collectors.toList());
-        }
+        return results;
     }
 
     private static class TransformationCache {
