@@ -59,11 +59,6 @@ public class ConsumerProvidedVariantFinder {
         this.transformationCache = new TransformationCache();
     }
 
-    public List<TransformedVariant> findTransformedVariants(List<ResolvedVariant> sources, ImmutableAttributes requested) {
-        return transformationCache.cache(sources, requested, (src, req) ->
-            doFindTransformedVariants(src, req, ImmutableFilteredList.allOf(variantTransforms.getTransforms())));
-    }
-
     static class ChainNode {
         final ChainNode next;
         final ArtifactTransformRegistration transform;
@@ -84,21 +79,29 @@ public class ConsumerProvidedVariantFinder {
         }
     }
 
-    private List<TransformedVariant> doFindTransformedVariants(
-        List<ImmutableAttributes> sources,
-        ImmutableAttributes requested,
-        ImmutableFilteredList<ArtifactTransformRegistration> transforms
-    ) {
-        Queue<ChainState> toProcess = new ArrayDeque<>();
-        toProcess.add(new ChainState(null, requested, transforms));
+    private static class CachedVariant {
+        private final int sourceIndex;
+        private final VariantDefinition chain;
+        public CachedVariant(int sourceIndex, VariantDefinition chain) {
+            this.sourceIndex = sourceIndex;
+            this.chain = chain;
+        }
+    }
 
-        Queue<ChainState> nextLevel = new ArrayDeque<>();
-        List<TransformedVariant> results = new ArrayList<>(1);
+    public List<TransformedVariant> findTransformedVariants(List<ResolvedVariant> sources, ImmutableAttributes requested) {
+        return transformationCache.query(sources, requested, this::doFindTransformedVariants);
+    }
+
+    private List<CachedVariant> doFindTransformedVariants(List<ImmutableAttributes> sources, ImmutableAttributes requested) {
+        Queue<ChainState> toProcess = new ArrayDeque<>();
+        toProcess.add(new ChainState(null, requested, ImmutableFilteredList.allOf(variantTransforms.getTransforms())));
+
+        Queue<ChainState> nextDepth = new ArrayDeque<>();
+        List<CachedVariant> results = new ArrayList<>(1);
 
         while (results.isEmpty() && !toProcess.isEmpty()) {
-            while (!toProcess.isEmpty()) {
+            for (ChainState state : toProcess) {
                 // The set of transforms which could potentially produce a variant compatible with `requested`.
-                ChainState state = toProcess.poll();
                 ImmutableFilteredList<ArtifactTransformRegistration> candidates =
                     state.transforms.matching(transform -> matcher.isMatching(transform.getTo(), state.requested));
 
@@ -109,31 +112,23 @@ public class ConsumerProvidedVariantFinder {
                         if (matcher.isMatching(sourceAttrs, candidate.getFrom())) {
                             ImmutableAttributes rootAttrs = attributesFactory.concat(sourceAttrs, candidate.getTo());
                             if (matcher.isMatching(rootAttrs, state.requested)) {
-
-                                TransformedVariant out = new TransformedVariant(i, rootAttrs, candidate.getTransformationStep());
-
-                                ChainNode node = state.chain;
-                                while (node != null) {
-                                    ImmutableAttributes variantAttributes = attributesFactory.concat(out.getAttributes(), node.transform.getTo());
-                                    out = new TransformedVariant(out, variantAttributes, node.transform.getTransformationStep());
-                                    node = node.next;
-                                }
-
-                                results.add(out);
+                                DefaultVariantDefinition rootTransformedVariant = new DefaultVariantDefinition(null, rootAttrs, candidate.getTransformationStep());
+                                VariantDefinition variantChain = createVariantChain(state.chain, rootTransformedVariant);
+                                results.add(new CachedVariant(i, variantChain));
                             }
                         }
                     }
                 }
 
-                // If we have a result at this level, don't bother building the next level's states.
+                // If we have a result at this depth, don't bother building the next depth's states.
                 if (!results.isEmpty()) {
                     continue;
                 }
 
-                // If we can't find any solutions at this level, construct new states for processing at the next depth.
+                // If we can't find any solutions at this depth, construct new states for processing at the next depth.
                 for (int i = 0; i < candidates.size(); i++) {
                     ArtifactTransformRegistration candidate = candidates.get(i);
-                    nextLevel.add(new ChainState(
+                    nextDepth.add(new ChainState(
                         new ChainNode(state.chain, candidate),
                         attributesFactory.concat(state.requested, candidate.getFrom()),
                         state.transforms.withoutIndexFrom(i, candidates)
@@ -141,26 +136,46 @@ public class ConsumerProvidedVariantFinder {
                 }
             }
 
+            toProcess.clear();
             Queue<ChainState> tmp = toProcess;
-            toProcess = nextLevel;
-            nextLevel = tmp;
+            toProcess = nextDepth;
+            nextDepth = tmp;
         }
 
         return results;
     }
 
-    private static class TransformationCache {
-        private final ConcurrentHashMap<CacheKey, List<TransformedVariant>> cache = new ConcurrentHashMap<>();
+    private VariantDefinition createVariantChain(final ChainNode stateChain, DefaultVariantDefinition root) {
+        ChainNode node = stateChain;
+        DefaultVariantDefinition last = root;
+        while (node != null) {
+            last = new DefaultVariantDefinition(
+                last,
+                attributesFactory.concat(last.getTargetAttributes(), node.transform.getTo()),
+                node.transform.getTransformationStep()
+            );
+            node = node.next;
+        }
+        return last;
+    }
 
-        private List<TransformedVariant> cache(
+    private static class TransformationCache {
+        private final ConcurrentHashMap<CacheKey, List<CachedVariant>> cache = new ConcurrentHashMap<>();
+
+        private List<TransformedVariant> query(
             List<ResolvedVariant> sources, ImmutableAttributes requested,
-            BiFunction<List<ImmutableAttributes>, ImmutableAttributes, List<TransformedVariant>> action
+            BiFunction<List<ImmutableAttributes>, ImmutableAttributes, List<CachedVariant>> action
         ) {
             ArrayList<ImmutableAttributes> variantAttributes = new ArrayList<>(sources.size());
             for (ResolvedVariant variant : sources) {
                 variantAttributes.add(variant.getAttributes().asImmutable());
             }
-            return cache.computeIfAbsent(new CacheKey(variantAttributes, requested), key -> action.apply(key.variantAttributes, key.requested));
+            List<CachedVariant> cached = cache.computeIfAbsent(new CacheKey(variantAttributes, requested), key -> action.apply(key.variantAttributes, key.requested));
+            List<TransformedVariant> output = new ArrayList<>(cached.size());
+            for (CachedVariant variant : cached) {
+                output.add(new TransformedVariant(sources.get(variant.sourceIndex), variant.chain));
+            }
+            return output;
         }
 
         private static class CacheKey {

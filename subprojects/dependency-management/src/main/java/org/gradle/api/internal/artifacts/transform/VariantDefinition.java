@@ -31,5 +31,5 @@ public interface VariantDefinition {
     TransformationStep getTransformationStep();
 
     @Nullable
-    VariantDefinition getSourceVariant();
+    VariantDefinition getPrevious();
 }

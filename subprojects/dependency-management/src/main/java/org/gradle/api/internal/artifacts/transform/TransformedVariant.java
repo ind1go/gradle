@@ -17,105 +17,40 @@
 package org.gradle.api.internal.artifacts.transform;
 
 import org.gradle.api.attributes.HasAttributes;
-import org.gradle.api.internal.attributes.AttributeContainerInternal;
+import org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact.ResolvedVariant;
 import org.gradle.api.internal.attributes.ImmutableAttributes;
 
-import javax.annotation.Nullable;
+public class TransformedVariant implements HasAttributes {
+    private final ResolvedVariant root;
+    private final VariantDefinition chain;
 
-/**
- * A component of a chain of transformed variants, each of which apply some transformation to the previous variant.
- */
-public class TransformedVariant implements VariantDefinition, HasAttributes {
-    private final Integer root;
-    private final TransformedVariant previous;
-    private final ImmutableAttributes attributes;
-    private final Transformation transformation;
-    private final TransformationStep transformationStep;
-    private final int depth;
-
-    /**
-     * Create a root transformed variant, which is based off of a resolved, "producer", variant.
-     * We store the index of the root instead of the variant itself to allow this result to be cached.
-     */
-    public TransformedVariant(
-        int root,
-        ImmutableAttributes attributes,
-        TransformationStep transformationStep
-    ) {
+    public TransformedVariant(ResolvedVariant root, VariantDefinition chain) {
         this.root = root;
-        this.attributes = attributes;
-        this.transformationStep = transformationStep;
-
-        this.transformation = transformationStep;
-        this.previous = null;
-        this.depth = 1;
-    }
-
-    /**
-     * Create a chained transformed variant, which is based off another transformed, "consumer", variant.
-     */
-    public TransformedVariant(
-        TransformedVariant previous,
-        ImmutableAttributes attributes,
-        TransformationStep transformationStep
-    ) {
-        this.previous = previous;
-        this.attributes = attributes;
-        this.transformationStep = transformationStep;
-
-        this.transformation = new TransformationChain(previous.transformation, transformationStep);
-        this.root = null;
-        this.depth = previous.getDepth() + 1;
+        this.chain = chain;
     }
 
     @Override
     public String toString() {
-        if (previous != null) {
-            return previous + " <- (" + depth + ") " + transformationStep;
-        } else {
-            return "(" + depth + ") " + transformationStep;
-        }
+        return chain.toString();
     }
 
-    @Override
-    public ImmutableAttributes getTargetAttributes() {
-        return attributes;
+    public VariantDefinition getVariantChain() {
+        return chain;
     }
 
-    @Override
     public Transformation getTransformation() {
-        return transformation;
-    }
-
-    @Override
-    public TransformationStep getTransformationStep() {
-        return transformationStep;
-    }
-
-    @Nullable
-    @Override
-    public VariantDefinition getSourceVariant() {
-        return previous;
+        return chain.getTransformation();
     }
 
     @Override
     public ImmutableAttributes getAttributes() {
-        return attributes;
+        return chain.getTargetAttributes();
     }
 
     /**
-     * Get the index of the root producer variant within the list of source variants.
+     * Get the root producer variant which the transform chain is applied to.
      */
-    public Integer getRootIndex() {
-        return root == null ? previous.getRootIndex() : root;
-    }
-
-    @Nullable
-    public TransformedVariant getPrevious() {
-        return previous;
-    }
-
-    public int getDepth() {
-        return depth;
+    public ResolvedVariant getRoot() {
+        return root;
     }
 }

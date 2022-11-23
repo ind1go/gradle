@@ -102,7 +102,7 @@ class AttributeMatchingVariantSelectorSpec extends Specification {
         def transformed = Mock(ResolvedArtifactSet)
         def variantSet = variantSetOf([variant])
         def transformedVariants = [
-            transformedVariant(0, requestedAttributes, 1)
+            transformedVariant(variant, requestedAttributes)
         ]
         def selector = new AttributeMatchingVariantSelector(consumerProvidedVariantFinder, attributesSchema, attributesFactory, transformedVariantFactory, requestedAttributes, false, false, dependenciesResolverFactory)
 
@@ -122,8 +122,8 @@ class AttributeMatchingVariantSelectorSpec extends Specification {
         def transformed = Mock(ResolvedArtifactSet)
         def multiVariantSet = variantSetOf([variant, otherVariant])
         def transformedVariants = [
-            transformedVariant(0, requestedAttributes, 2),
-            transformedVariant(1, requestedAttributes, 3)
+            transformedVariant(variant, requestedAttributes),
+            transformedVariant(otherVariant, requestedAttributes)
         ]
         def selector = new AttributeMatchingVariantSelector(consumerProvidedVariantFinder, attributesSchema, attributesFactory, transformedVariantFactory, requestedAttributes, false, false, dependenciesResolverFactory)
 
@@ -145,8 +145,8 @@ class AttributeMatchingVariantSelectorSpec extends Specification {
         def transformed = Mock(ResolvedArtifactSet)
         def multiVariantSet = variantSetOf([variant, otherVariant])
         def transformedVariants = [
-            transformedVariant(0, requestedAttributes, 2),
-            transformedVariant(1, requestedAttributes, 3)
+            transformedVariant(variant, requestedAttributes),
+            transformedVariant(otherVariant, requestedAttributes)
         ]
         def selector = new AttributeMatchingVariantSelector(consumerProvidedVariantFinder, attributesSchema, attributesFactory, transformedVariantFactory, requestedAttributes, false, false, dependenciesResolverFactory)
 
@@ -168,8 +168,8 @@ class AttributeMatchingVariantSelectorSpec extends Specification {
         def transformed = Mock(ResolvedArtifactSet)
         def multiVariantSet = variantSetOf([variant, otherVariant])
         def transformedVariants = [
-            transformedVariant(0, otherVariant.getAttributes(), 2),
-            transformedVariant(1, variant.getAttributes(), 3)
+            transformedVariant(variant, otherVariant.getAttributes()),
+            transformedVariant(otherVariant, variant.getAttributes())
         ]
         def selector = new AttributeMatchingVariantSelector(consumerProvidedVariantFinder, attributesSchema, attributesFactory, transformedVariantFactory, requestedAttributes, false, false, dependenciesResolverFactory)
 
@@ -190,9 +190,9 @@ class AttributeMatchingVariantSelectorSpec extends Specification {
         def transformed = Mock(ResolvedArtifactSet)
         def multiVariantSet = variantSetOf([variant, otherVariant, yetAnotherVariant])
         def transformedVariants = [
-            transformedVariant(0, requestedAttributes, 3),
-            transformedVariant(1, requestedAttributes, 3),
-            transformedVariant(2, requestedAttributes, 2)
+            transformedVariant(variant, requestedAttributes),
+            transformedVariant(otherVariant, requestedAttributes),
+            transformedVariant(yetAnotherVariant, requestedAttributes)
         ]
         def selector = new AttributeMatchingVariantSelector(consumerProvidedVariantFinder, attributesSchema, attributesFactory, transformedVariantFactory, requestedAttributes, false, false, dependenciesResolverFactory)
 
@@ -214,9 +214,9 @@ class AttributeMatchingVariantSelectorSpec extends Specification {
         def transformed = Mock(ResolvedArtifactSet)
         def multiVariantSet = variantSetOf([variant, otherVariant, yetAnotherVariant])
         def transformedVariants = [
-            transformedVariant(0, requestedAttributes, 3),
-            transformedVariant(1, requestedAttributes, 2),
-            transformedVariant(2, requestedAttributes, 3)
+            transformedVariant(variant, requestedAttributes),
+            transformedVariant(otherVariant, requestedAttributes),
+            transformedVariant(yetAnotherVariant, requestedAttributes)
         ]
         def selector = new AttributeMatchingVariantSelector(consumerProvidedVariantFinder, attributesSchema, attributesFactory, transformedVariantFactory, requestedAttributes, false, false, dependenciesResolverFactory)
 
@@ -237,9 +237,9 @@ class AttributeMatchingVariantSelectorSpec extends Specification {
         given:
         def multiVariantSet = variantSetOf([variant, otherVariant, yetAnotherVariant])
         def transformedVariants = [
-            transformedVariant(0, requestedAttributes, 3),
-            transformedVariant(1, requestedAttributes, 2),
-            transformedVariant(2, requestedAttributes, 3)
+            transformedVariant(variant, requestedAttributes),
+            transformedVariant(otherVariant, requestedAttributes),
+            transformedVariant(yetAnotherVariant, requestedAttributes)
         ]
         def selector = new AttributeMatchingVariantSelector(consumerProvidedVariantFinder, attributesSchema, attributesFactory, transformedVariantFactory, requestedAttributes, false, false, dependenciesResolverFactory)
 
@@ -264,16 +264,15 @@ class AttributeMatchingVariantSelectorSpec extends Specification {
         }
     }
 
-    TransformedVariant transformedVariant(int rootIndex, AttributeContainerInternal attributes, int depth) {
+    TransformedVariant transformedVariant(ResolvedVariant root, AttributeContainerInternal attributes) {
         ImmutableAttributes attrs = attributes.asImmutable()
-        if (depth == 1) {
-            return new TransformedVariant(rootIndex, attrs, Mock(TransformationStep))
-        } else {
-            return new TransformedVariant(
-                transformedVariant(rootIndex, attrs, depth - 1),
-                attrs,
-                Mock(TransformationStep)
-            )
+        TransformationStep step = Mock(TransformationStep) {
+            getDisplayName() >> ""
         }
+        VariantDefinition definition = Mock(VariantDefinition) {
+            getTransformation() >> step
+            getTargetAttributes() >> attrs
+        }
+        return new TransformedVariant(root, definition)
     }
 }

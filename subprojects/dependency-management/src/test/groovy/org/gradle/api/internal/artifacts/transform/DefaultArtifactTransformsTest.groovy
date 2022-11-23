@@ -128,11 +128,7 @@ class DefaultArtifactTransformsTest extends Specification {
         attributeMatcher.matches(_, _, _) >> []
 
         matchingCache.findTransformedVariants(_, _) >> { List<ResolvedVariant> from, ImmutableAttributes to ->
-            def transformed = []
-            for (int i = 0; i < from.size(); i++) {
-                transformed.add(transformedVariant(i, to, 1))
-            }
-            transformed
+            from.collect { transformedVariant(it, to) }
         }
 
         def selector = transforms.variantSelector(typeAttributes("dll"), true, false, dependenciesResolver)
@@ -225,19 +221,15 @@ Found the following transforms:
         attributeContainer.asImmutable()
     }
 
-    TransformedVariant transformedVariant(int rootIndex, AttributeContainerInternal attributes, int depth) {
+    TransformedVariant transformedVariant(ResolvedVariant root, AttributeContainerInternal attributes) {
         ImmutableAttributes attrs = attributes.asImmutable()
         TransformationStep step = Mock(TransformationStep) {
             getDisplayName() >> ""
         }
-        if (depth == 1) {
-            return new TransformedVariant(rootIndex, attrs, step)
-        } else {
-            return new TransformedVariant(
-                transformedVariant(rootIndex, attrs, depth - 1),
-                attrs,
-                step
-            )
+        VariantDefinition definition = Mock(VariantDefinition) {
+            getTransformation() >> step
+            getTargetAttributes() >> attrs
         }
+        return new TransformedVariant(root, definition)
     }
 }

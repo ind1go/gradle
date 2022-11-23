@@ -30,11 +30,11 @@ import java.util.stream.Collectors;
 import static org.gradle.internal.component.AmbiguousVariantSelectionException.formatAttributes;
 
 public class AmbiguousTransformException extends VariantSelectionException {
-    public AmbiguousTransformException(String producerDisplayName, AttributeContainerInternal requested, List<ResolvedVariant> variants, List<TransformedVariant> candidates) {
-        super(format(producerDisplayName, requested, variants, candidates));
+    public AmbiguousTransformException(String producerDisplayName, AttributeContainerInternal requested, List<TransformedVariant> candidates) {
+        super(format(producerDisplayName, requested, candidates));
     }
 
-    private static String format(String producerDisplayName, AttributeContainerInternal requested, List<ResolvedVariant> variants, List<TransformedVariant> candidates) {
+    private static String format(String producerDisplayName, AttributeContainerInternal requested, List<TransformedVariant> candidates) {
         TreeFormatter formatter = new TreeFormatter();
         formatter.node("Found multiple transforms that can produce a variant of " + producerDisplayName + " with requested attributes");
         formatAttributes(formatter, requested);
@@ -44,7 +44,7 @@ public class AmbiguousTransformException extends VariantSelectionException {
             Comparator.<TransformedVariant, String>comparing(x -> x.getTransformation().getDisplayName())
                 .thenComparing(x -> x.getAttributes().toString());
         Map<ResolvedVariant, List<TransformedVariant>> variantToTransforms = candidates.stream().collect(Collectors.groupingBy(
-            transformedVariant -> variants.get(transformedVariant.getRootIndex()),
+            TransformedVariant::getRoot,
             () -> new TreeMap<>(Comparator.comparing(variant -> variant.asDescribable().getDisplayName())),
             Collectors.collectingAndThen(Collectors.toList(), list -> list.stream().sorted(variantComparator).collect(Collectors.toList()))));
 

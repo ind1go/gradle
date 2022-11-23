@@ -126,12 +126,11 @@ class AttributeMatchingVariantSelector implements VariantSelector {
 
         if (transformedVariants.size() == 1) {
             TransformedVariant result = transformedVariants.get(0);
-            ResolvedVariant root = variants.get(result.getRootIndex());
-            return factory.asTransformed(root, result, dependenciesResolver, transformedVariantFactory);
+            return factory.asTransformed(result.getRoot(), result.getVariantChain(), dependenciesResolver, transformedVariantFactory);
         }
 
         if (!transformedVariants.isEmpty()) {
-            throw new AmbiguousTransformException(producer.asDescribable().getDisplayName(), componentRequested, variants, transformedVariants);
+            throw new AmbiguousTransformException(producer.asDescribable().getDisplayName(), componentRequested, transformedVariants);
         }
 
         if (ignoreWhenNoMatches) {
