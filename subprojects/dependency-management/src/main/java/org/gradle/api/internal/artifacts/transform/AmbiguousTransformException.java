@@ -16,6 +16,9 @@
 
 package org.gradle.api.internal.artifacts.transform;
 
+import com.google.common.collect.Ordering;
+import org.gradle.api.attributes.Attribute;
+import org.gradle.api.attributes.AttributeContainer;
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact.ResolvedVariant;
 import org.gradle.api.internal.attributes.AttributeContainerInternal;
 import org.gradle.internal.component.VariantSelectionException;
@@ -26,8 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-
-import static org.gradle.internal.component.AmbiguousVariantSelectionException.formatAttributes;
 
 public class AmbiguousTransformException extends VariantSelectionException {
     public AmbiguousTransformException(String producerDisplayName, AttributeContainerInternal requested, List<TransformedVariant> candidates) {
@@ -65,5 +66,13 @@ public class AmbiguousTransformException extends VariantSelectionException {
         }
         formatter.endChildren();
         return formatter.toString();
+    }
+
+    public static void formatAttributes(TreeFormatter formatter, AttributeContainer attributes) {
+        formatter.startChildren();
+        for (Attribute<?> attribute : Ordering.usingToString().sortedCopy(attributes.keySet())) {
+            formatter.node(attribute.getName() + " '" + attributes.getAttribute(attribute) + "'");
+        }
+        formatter.endChildren();
     }
 }

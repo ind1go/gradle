@@ -70,8 +70,8 @@ class DefaultArtifactTransformsTest extends Specification {
     }
 
     def "fails when multiple producer variants match"() {
-        def variant1 = Stub(ResolvedVariant)
-        def variant2 = Stub(ResolvedVariant)
+        def variant1 = resolvedVariant()
+        def variant2 = resolvedVariant()
         def set = resolvedVariantSet()
         def variants = [variant1, variant2] as Set
 
@@ -97,16 +97,6 @@ class DefaultArtifactTransformsTest extends Specification {
         e.message == toPlatformLineSeparators("""The consumer was configured to find attribute 'artifactType' with value 'classes'. However we cannot choose between the following variants of <component>:
   - <variant1> declares attribute 'artifactType' with value 'classes'
   - <variant2> declares attribute 'artifactType' with value 'jar'""")
-    }
-
-    private ResolvedVariant resolvedVariant() {
-        Stub(ResolvedVariant)
-    }
-
-    private ResolvedVariantSet resolvedVariantSet() {
-        Stub(ResolvedVariantSet) {
-            getOverriddenAttributes() >> ImmutableAttributes.EMPTY
-        }
     }
 
     def "fails when multiple transforms match"() {
@@ -205,6 +195,16 @@ Found the following transforms:
       - Incompatible because this component declares attribute 'artifactType' with value 'jar' and the consumer needed attribute 'artifactType' with value 'dll'
   - <variant2>:
       - Incompatible because this component declares attribute 'artifactType' with value 'classes' and the consumer needed attribute 'artifactType' with value 'dll'""")
+    }
+
+    private ResolvedVariant resolvedVariant() {
+        Stub(ResolvedVariant)
+    }
+
+    private ResolvedVariantSet resolvedVariantSet() {
+        Stub(ResolvedVariantSet) {
+            getOverriddenAttributes() >> ImmutableAttributes.EMPTY
+        }
     }
 
     def visit(ResolvedArtifactSet set) {

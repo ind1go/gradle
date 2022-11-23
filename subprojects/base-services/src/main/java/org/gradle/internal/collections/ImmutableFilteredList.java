@@ -33,9 +33,9 @@ public class ImmutableFilteredList<T> extends AbstractList<T> {
     private final List<T> source;
     private final BitSet filter;
 
-    private ImmutableFilteredList(List<T> source, BitSet filer) {
+    private ImmutableFilteredList(List<T> source, BitSet filter) {
         this.source = source;
-        this.filter = filer;
+        this.filter = filter;
     }
 
     /**
