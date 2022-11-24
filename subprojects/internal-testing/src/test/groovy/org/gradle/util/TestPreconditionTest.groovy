@@ -16,20 +16,40 @@
 
 package org.gradle.util
 
+import com.gradle.enterprise.testing.annotations.LocalOnly
 import spock.lang.Specification
+
+import static org.junit.Assume.assumeTrue
+
 /**
  * This is a special test class probing all our defined test preconditions.
  */
-class TestPreconditionTest extends Specification {
+@LocalOnly
+class LocalTestPreconditionTest extends Specification {
 
-    def "requirement '#condition' is satisfied"() {
+    def "requirement '#condition' is satisfied locally"() {
+        assumeTrue(condition.create())
+
+        expect:
         condition.create()
-
-        given:
-        condition.create();
 
         where:
         condition << TestPrecondition.values().toList()
     }
 
 }
+
+//@RemoteOnly
+//class RemoteTestPreconditionTest extends Specification {
+//
+//    def "requirement '#condition' is satisfied remotely"() {
+//        condition.create()
+//
+//        given:
+//        condition.create();
+//
+//        where:
+//        condition << TestPrecondition.values().toList()
+//    }
+//
+//}
