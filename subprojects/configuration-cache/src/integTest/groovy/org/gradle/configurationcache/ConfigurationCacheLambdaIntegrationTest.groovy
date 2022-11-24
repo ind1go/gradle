@@ -76,6 +76,56 @@ class ConfigurationCacheLambdaIntegrationTest extends AbstractConfigurationCache
         "non-instance capturing" | "setNonInstanceCapturingLambda()"
     }
 
+    def "serializable lambdas"() {
+        given:
+        file("buildSrc/src/main/java/my/LambdaTask.java").tap {
+            parentFile.mkdirs()
+            text = """
+                package my;
+
+                import org.gradle.api.*;
+                import org.gradle.api.tasks.*;
+                import org.gradle.api.artifacts.Configuration;
+
+                public class LambdaTask extends DefaultTask {
+
+                    public interface SerializableSupplier<T> extends java.io.Serializable {
+                        T get();
+                    }
+
+                    private SerializableSupplier<Integer> supplier;
+
+                    public void setSupplier(SerializableSupplier<Integer> supplier) {
+                        this.supplier = supplier;
+                    }
+
+                    public void setLambda() {
+                        Configuration c = getProject().getConfigurations().create("c");
+                        setSupplier(() -> c.getName().length());
+                    }
+
+                    @TaskAction
+                    void printValue() {
+                        System.out.println("this.supplier.get() -> " + this.supplier.get());
+                    }
+                }
+            """
+        }
+
+        buildFile << """
+            task ok(type: my.LambdaTask) {
+                setLambda()
+            }
+        """
+
+        when:
+        configurationCacheFails "ok"
+
+        then:
+        outputContains("this.supplier.get() -> 1")
+    }
+
+
     def "restores task with action and spec that are Java lambdas"() {
         given:
         file("buildSrc/src/main/java/my/LambdaPlugin.java").tap {

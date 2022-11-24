@@ -141,6 +141,7 @@ class Codecs(
 
         bind(ClosureCodec)
         bind(GroovyMetaClassCodec)
+        bind(SerializedLambdaCodec)
 
         // Dependency management types
         bind(ArtifactCollectionCodec(fileCollectionFactory, artifactSetConverter))
