@@ -142,10 +142,11 @@ class AttributeMatchingVariantSelector implements VariantSelector {
 
     private List<TransformedVariant> tryDisambiguate(AttributeMatcher matcher, List<TransformedVariant> candidates, ImmutableAttributes componentRequested, AttributeMatchingExplanationBuilder explanationBuilder) {
         List<TransformedVariant> matches = matcher.matches(candidates, componentRequested, explanationBuilder);
+        if (candidates.size() == 1) {
+            return matches;
+        }
         if (matches.size() > 0 && matches.size() < candidates.size()) {
             candidates = matches;
-        } else if (candidates.size() == 1) {
-            return matches;
         }
 
         List<TransformedVariant> differentTransforms = new ArrayList<>(1);
