@@ -278,10 +278,10 @@ Use the link:java_gradle_plugin.html[`java-gradle-plugin`]'s `validatePlugins` t
 
 Gradle changes the compression library used for creating archives from an Ant based one to https://commons.apache.org/proper/commons-compress/[Apache Commons Compress™]. As a consequence archives created from the same content, are unlikely to end up identical byte-by-byte to their older versions, created with the old library.
 
-[[kotlin_1_7_21]]
-==== Upgrade to Kotlin 1.7.21
+[[kotlin_1_7_20]]
+==== Upgrade to Kotlin 1.7.20
 
-The embedded Kotlin has been updated to https://github.com/JetBrains/kotlin/releases/tag/v1.7.21[Kotlin 1.7.21].
+The embedded Kotlin has been updated to https://github.com/JetBrains/kotlin/releases/tag/v1.7.20[Kotlin 1.7.20].
 
 [[changes_7.6]]
 == Upgrading from 7.5 and earlier
@@ -733,7 +733,7 @@ If you are using TestNG, versions prior to `5.14.6` perform illegal reflection. 
 
 The <<checkstyle_plugin.adoc#checkstyle_plugin,Checkstyle plugin>> now uses the Gradle worker API to run Checkstyle as an external worker process. Multiple Checkstyle tasks may now run in parallel within a project.
 
-Some projects will need to increase the amount of memory available to Checkstyle to avoid out of memory errors. You can <<checkstyle_plugin.adoc#sec:checkstyle_customize_memory,increase the maximum memory for the Checkstyle process>> by setting the `maxHeapSize` for the Checkstyle task. By default, the process will start with a maximum heap size of 512MB. 
+Some projects will need to increase the amount of memory available to Checkstyle to avoid out of memory errors. You can <<checkstyle_plugin.adoc#sec:checkstyle_customize_memory,increase the maximum memory for the Checkstyle process>> by setting the `maxHeapSize` for the Checkstyle task. By default, the process will start with a maximum heap size of 512MB.
 
 We also recommend to update Checkstyle to version 9.3 or later.
 
