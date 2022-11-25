@@ -38,6 +38,7 @@ import org.gradle.internal.component.model.AttributeMatcher;
 import org.gradle.internal.component.model.AttributeMatchingExplanationBuilder;
 import org.gradle.internal.component.model.DescriberSelector;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -120,8 +121,7 @@ class AttributeMatchingVariantSelector implements VariantSelector {
 
         // If there are multiple potential artifact transform variants, perform attribute matching to attempt to find the best.
         if (transformedVariants.size() > 1) {
-            List<TransformedVariant> transformedMatches = matcher.matches(transformedVariants, componentRequested, explanationBuilder);
-            transformedVariants = transformedMatches.size() > 0 ? transformedMatches : transformedVariants;
+            transformedVariants = tryDisambiguate(matcher, transformedVariants, componentRequested, explanationBuilder);
         }
 
         if (transformedVariants.size() == 1) {
@@ -138,6 +138,35 @@ class AttributeMatchingVariantSelector implements VariantSelector {
         }
 
         throw new NoMatchingVariantSelectionException(producer.asDescribable().getDisplayName(), componentRequested, variants, matcher, DescriberSelector.selectDescriber(componentRequested, schema));
+    }
+
+    private List<TransformedVariant> tryDisambiguate(AttributeMatcher matcher, List<TransformedVariant> candidates, ImmutableAttributes componentRequested, AttributeMatchingExplanationBuilder explanationBuilder) {
+        List<TransformedVariant> matches = matcher.matches(candidates, componentRequested, explanationBuilder);
+        if (matches.size() > 0 && matches.size() < candidates.size()) {
+            candidates = matches;
+        } else if (candidates.size() == 1) {
+            return matches;
+        }
+
+        List<TransformedVariant> differentTransforms = new ArrayList<>(1);
+
+        TransformedVariant last = candidates.get(candidates.size() - 1);
+        differentTransforms.add(last);
+
+        // Find any other candidate which does not match with the last candidate.
+        for (int i = 0; i < candidates.size() - 1; i++) {
+            TransformedVariant current = candidates.get(i);
+            if (candidatesDifferent(matcher, current, last)) {
+                differentTransforms.add(current);
+            }
+        }
+
+        return differentTransforms.size() == candidates.size() ? candidates : differentTransforms;
+    }
+
+    private static boolean candidatesDifferent(AttributeMatcher matcher, TransformedVariant firstCandidate, TransformedVariant secondCandidate) {
+        return !matcher.isMatching(firstCandidate.getAttributes(), secondCandidate.getAttributes()) &&
+            !matcher.isMatching(secondCandidate.getAttributes(), firstCandidate.getAttributes());
     }
 
     private static class TraceDiscardedVariants implements AttributeMatchingExplanationBuilder {
