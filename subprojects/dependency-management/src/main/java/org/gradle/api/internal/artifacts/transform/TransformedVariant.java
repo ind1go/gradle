@@ -20,6 +20,10 @@ import org.gradle.api.attributes.HasAttributes;
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact.ResolvedVariant;
 import org.gradle.api.internal.attributes.ImmutableAttributes;
 
+/**
+ * Represents a variant which is produced as the result of applying an artifact transformation chain
+ * to a root producer variant.
+ */
 public class TransformedVariant implements HasAttributes {
     private final ResolvedVariant root;
     private final VariantDefinition chain;
@@ -34,23 +38,29 @@ public class TransformedVariant implements HasAttributes {
         return chain.toString();
     }
 
+    /**
+     * @return The chain of variants which result from applying the transformation chain to the root variant.
+     */
     public VariantDefinition getVariantChain() {
         return chain;
     }
 
+    /**
+     * @return The transformation chain to apply to the root producer variant.
+     */
     public Transformation getTransformation() {
         return chain.getTransformation();
+    }
+
+    /**
+     * @return The root producer variant which the transform chain is applied to.
+     */
+    public ResolvedVariant getRoot() {
+        return root;
     }
 
     @Override
     public ImmutableAttributes getAttributes() {
         return chain.getTargetAttributes();
-    }
-
-    /**
-     * Get the root producer variant which the transform chain is applied to.
-     */
-    public ResolvedVariant getRoot() {
-        return root;
     }
 }

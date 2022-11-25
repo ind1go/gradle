@@ -20,6 +20,9 @@ import org.gradle.api.internal.attributes.ImmutableAttributes;
 
 import javax.annotation.Nullable;
 
+/**
+ * Default implementation of {@link VariantDefinition}.
+ */
 public class DefaultVariantDefinition implements VariantDefinition {
     private final DefaultVariantDefinition previous;
     private final ImmutableAttributes attributes;
