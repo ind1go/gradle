@@ -42,7 +42,6 @@ import org.gradle.configurationcache.serialization.readFile
 import org.gradle.configurationcache.serialization.readList
 import org.gradle.configurationcache.serialization.readNonNull
 import org.gradle.configurationcache.serialization.readStrings
-import org.gradle.configurationcache.serialization.runReadOperation
 import org.gradle.configurationcache.serialization.withDebugFrame
 import org.gradle.configurationcache.serialization.withGradleIsolate
 import org.gradle.configurationcache.serialization.writeCollection
@@ -99,7 +98,8 @@ interface ConfigurationCacheStateFile {
 internal
 class ConfigurationCacheState(
     private val codecs: Codecs,
-    private val stateFile: ConfigurationCacheStateFile
+    private val stateFile: ConfigurationCacheStateFile,
+    private val eventEmitter: BuildOperationProgressEventEmitter
 ) {
     /**
      * Writes the state for the whole build starting from the given root [build] and returns the set
@@ -125,9 +125,8 @@ class ConfigurationCacheState(
     private
     fun identifyBuild(state: CachedBuildState) {
         val gradle = state.build.gradle
-        val emitter = gradle.serviceOf<BuildOperationProgressEventEmitter>()
-        emitter.emitNowForCurrent(BuildIdentifiedProgressDetails { gradle.identityPath.toString() })
-        emitter.emitNowForCurrent(object : ProjectsIdentifiedProgressDetails {
+        eventEmitter.emitNowForCurrent(BuildIdentifiedProgressDetails { gradle.identityPath.toString() })
+        eventEmitter.emitNowForCurrent(object : ProjectsIdentifiedProgressDetails {
             override fun getBuildPath() = gradle.identityPath.toString()
             override fun getRootProject() = BuildStructureOperationProject.from(gradle)
         })
@@ -214,13 +213,7 @@ class ConfigurationCacheState(
 
         val gradle = build.gradle
 
-        lateinit var children: List<CachedBuildState>
-
-        val readOperation: suspend DefaultReadContext.() -> Unit = {
-            children = readGradleState(build)
-        }
-
-        runReadOperation(readOperation)
+        val children = readGradleState(build)
 
         val projects = readProjects(gradle, build)
 
@@ -233,14 +226,8 @@ class ConfigurationCacheState(
 
         val workGraph = readWorkGraph(gradle)
         readBuildOutputCleanupRegistrations(gradle)
-        return CachedBuildState(build, workGraph, children)
+        return CachedBuildState(build, projects, workGraph, children)
     }
-
-    data class CachedBuildState(
-        val build: ConfigurationCacheBuild,
-        val workGraph: List<Node>,
-        val children: List<CachedBuildState>
-    )
 
     private
     suspend fun DefaultWriteContext.writeWorkGraphOf(gradle: GradleInternal, scheduledNodes: List<Node>) {
@@ -274,7 +261,7 @@ class ConfigurationCacheState(
     }
 
     private
-    fun applyProjectStates(projects: List<CachedProject>, gradle: GradleInternal) {
+    fun applyProjectStates(projects: List<CachedProjectState>, gradle: GradleInternal) {
         for (project in projects) {
             if (project is ProjectWithWork && project.normalizationState != null) {
                 val projectState = gradle.owner.projects.getProject(Path.path(project.path))
@@ -627,7 +614,7 @@ class ConfigurationCacheState(
     }
 
     private
-    fun collectProjects(projects: BuildProjectRegistry, nodes: List<Node>, relevantProjectsRegistry: RelevantProjectsRegistry): List<CachedProject> {
+    fun collectProjects(projects: BuildProjectRegistry, nodes: List<Node>, relevantProjectsRegistry: RelevantProjectsRegistry): List<CachedProjectState> {
         val relevantProjects = relevantProjectsRegistry.relevantProjects(nodes)
         return projects.allProjects.map { project ->
             if (relevantProjects.contains(project)) {
@@ -641,17 +628,17 @@ class ConfigurationCacheState(
     }
 
     private
-    suspend fun WriteContext.writeProjects(gradle: GradleInternal, projects: List<CachedProject>) {
+    suspend fun WriteContext.writeProjects(gradle: GradleInternal, projects: List<CachedProjectState>) {
         withGradleIsolate(gradle, userTypesCodec) {
             writeCollection(projects)
         }
     }
 
     private
-    suspend fun ReadContext.readProjects(gradle: GradleInternal, build: ConfigurationCacheBuild): List<CachedProject> {
+    suspend fun ReadContext.readProjects(gradle: GradleInternal, build: ConfigurationCacheBuild): List<CachedProjectState> {
         withGradleIsolate(gradle, userTypesCodec) {
             return readList {
-                val project = readNonNull<CachedProject>()
+                val project = readNonNull<CachedProjectState>()
                 if (project is ProjectWithWork) {
                     build.createProject(project.path, project.projectDir, project.buildDir)
                 }
