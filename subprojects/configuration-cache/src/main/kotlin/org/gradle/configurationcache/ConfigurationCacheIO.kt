@@ -149,7 +149,7 @@ class ConfigurationCacheIO internal constructor(
     fun writeIncludedBuildStateTo(stateFile: ConfigurationCacheStateFile, buildTreeState: StoredBuildTreeState) {
         writeConfigurationCacheState(stateFile) { cacheState ->
             cacheState.run {
-                writeBuildState(host.currentBuild, buildTreeState)
+                writeBuildContentState(host.currentBuild, buildTreeState)
             }
         }
     }
@@ -158,7 +158,7 @@ class ConfigurationCacheIO internal constructor(
     fun readIncludedBuildStateFrom(stateFile: ConfigurationCacheStateFile, includedBuild: ConfigurationCacheBuild) =
         readConfigurationCacheState(stateFile) { state ->
             state.run {
-                readBuildState(includedBuild)
+                readBuildContentState(includedBuild)
             }
         }
 
@@ -168,7 +168,7 @@ class ConfigurationCacheIO internal constructor(
         action: suspend DefaultReadContext.(ConfigurationCacheState) -> T
     ): T {
         return withReadContextFor(stateFile.inputStream()) { codecs ->
-            ConfigurationCacheState(codecs, stateFile, eventEmitter).run {
+            ConfigurationCacheState(codecs, stateFile, eventEmitter, host).run {
                 action(this)
             }
         }
@@ -183,7 +183,7 @@ class ConfigurationCacheIO internal constructor(
         val (context, codecs) = writerContextFor(stateFile.outputStream(), build.gradle.owner.displayName.displayName + " state")
         return context.useToRun {
             runWriteOperation {
-                action(ConfigurationCacheState(codecs, stateFile, eventEmitter))
+                action(ConfigurationCacheState(codecs, stateFile, eventEmitter, host))
             }
         }
     }

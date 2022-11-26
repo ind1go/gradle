@@ -32,7 +32,6 @@ import org.gradle.initialization.layout.BuildLayout
 import org.gradle.internal.Factory
 import org.gradle.internal.build.BuildStateRegistry
 import org.gradle.internal.build.CompositeBuildParticipantBuildState
-import org.gradle.internal.build.IncludedBuildState
 import org.gradle.internal.file.PathToFileResolver
 import org.gradle.internal.reflect.Instantiator
 import org.gradle.internal.resource.StringTextResource
@@ -50,8 +49,14 @@ class ConfigurationCacheHost internal constructor(
     override val currentBuild: VintageGradleBuild =
         DefaultVintageGradleBuild(gradle)
 
+    override fun visitBuilds(visitor: (VintageGradleBuild) -> Unit) {
+        service<BuildStateRegistry>().visitBuilds { build ->
+            visitor(DefaultVintageGradleBuild(build.mutableModel))
+        }
+    }
+
     override fun createBuild(settingsFile: File?, rootProjectName: String): ConfigurationCacheBuild =
-        DefaultConfigurationCacheBuild(gradle, service(), settingsFile, rootProjectName)
+        DefaultConfigurationCacheBuild(gradle, service(), service(), settingsFile, rootProjectName)
 
     override fun <T> service(serviceType: Class<T>): T =
         gradle.services.get(serviceType)
@@ -61,6 +66,9 @@ class ConfigurationCacheHost internal constructor(
 
     private
     class DefaultVintageGradleBuild(override val gradle: GradleInternal) : VintageGradleBuild {
+        override val hasScheduledWork: Boolean
+            get() = gradle.taskGraph.size() > 0
+
         override val scheduledWork: List<Node>
             get() {
                 lateinit var nodes: List<Node>
@@ -73,6 +81,7 @@ class ConfigurationCacheHost internal constructor(
     inner class DefaultConfigurationCacheBuild(
         override val gradle: GradleInternal,
         private val fileResolver: PathToFileResolver,
+        private val buildStateRegistry: BuildStateRegistry,
         private val settingsFile: File?,
         private val rootProjectName: String
     ) : ConfigurationCacheBuild {
@@ -137,8 +146,8 @@ class ConfigurationCacheHost internal constructor(
         override fun getProject(path: String): ProjectInternal =
             state.projects.getProject(Path.path(path)).mutableModel
 
-        override fun addIncludedBuild(buildDefinition: BuildDefinition): IncludedBuildState {
-            return service<BuildStateRegistry>().addIncludedBuild(buildDefinition)
+        override fun addIncludedBuild(buildDefinition: BuildDefinition, settingsFile: File?, rootProjectName: String): ConfigurationCacheBuild {
+            return DefaultConfigurationCacheBuild(buildStateRegistry.addIncludedBuild(buildDefinition).mutableModel, fileResolver, buildStateRegistry, settingsFile, rootProjectName)
         }
 
         private

@@ -57,6 +57,5 @@ internal
 data class CachedBuildState(
     val build: ConfigurationCacheBuild,
     val projects: List<CachedProjectState>,
-    val workGraph: List<Node>,
-    val children: List<CachedBuildState>
+    val workGraph: List<Node>
 )

@@ -22,5 +22,6 @@ import org.gradle.execution.plan.Node
 
 interface VintageGradleBuild {
     val gradle: GradleInternal
+    val hasScheduledWork: Boolean
     val scheduledWork: List<Node>
 }

@@ -33,10 +33,13 @@ class ConfigurationCacheBuildTreeStructureIntegrationTest extends AbstractConfig
                         def registry = project.services.get(${BuildStateRegistry.name})
                         doLast {
                             def projects = []
+                            def builds = []
                             registry.visitBuilds { b ->
+                                builds.add(b.identityPath.path)
                                 projects.addAll(b.projects.allProjects.collect { p -> p.identityPath.path })
                             }
                             println "projects = " + projects
+                            println "builds = " + builds
                         }
                     }
                 }
@@ -44,7 +47,7 @@ class ConfigurationCacheBuildTreeStructureIntegrationTest extends AbstractConfig
         """
     }
 
-    def "restores some details of the project structure"(List<String> tasks) {
+    def "restores only projects that have work scheduled"(List<String> tasks) {
         def fixture = new BuildOperationsFixture(executer, temporaryFolder)
         executer.beforeExecute {
             withArgument("-Dorg.gradle.configuration-cache.internal.load-after-store=true")
@@ -110,6 +113,7 @@ class ConfigurationCacheBuildTreeStructureIntegrationTest extends AbstractConfig
 
         then:
         if (projects) {
+            outputContains("builds = [:]")
             outputContains("projects = $projects")
         }
         fixture.none(LoadBuildBuildOperationType)
@@ -147,7 +151,7 @@ class ConfigurationCacheBuildTreeStructureIntegrationTest extends AbstractConfig
         [":a:b:thing"] | [':', ':a', ':a:b']
     }
 
-    def "restores some details of the project structure of included build"(String task) {
+    def "restores only builds and projects of included build that have work scheduled"(String task) {
         def fixture = new BuildOperationsFixture(executer, temporaryFolder)
         executer.beforeExecute {
             withArgument("-Dorg.gradle.configuration-cache.internal.load-after-store=true")
@@ -214,6 +218,7 @@ class ConfigurationCacheBuildTreeStructureIntegrationTest extends AbstractConfig
         configurationCacheRun(task)
 
         then:
+        outputContains("builds = $builds")
         outputContains("projects = $projects")
         fixture.none(LoadBuildBuildOperationType)
         fixture.none(LoadProjectsBuildOperationType)
@@ -237,12 +242,12 @@ class ConfigurationCacheBuildTreeStructureIntegrationTest extends AbstractConfig
         }
 
         where:
-        task                         | projects
-        ":thing"                     | [':', ':include', ':inner-include']
-        ":child:thing"               | [':', ':child', ':include', ':inner-include']
-        ":include:thing"             | [':', ':include', ':inner-include']
-        ":include:child:thing"       | [':', ':include', ':include:child', ':inner-include']
-        ":inner-include:thing"       | [':', ':include', ':inner-include']
-        ":inner-include:child:thing" | [':', ':include', ':inner-include', ':inner-include:child']
+        task                         | projects                                        | builds
+        ":thing"                     | [':']                                           | [':']
+        ":child:thing"               | [':', ':child']                                 | [':']
+        ":include:thing"             | [':', ':include']                               | [':', ':include']
+        ":include:child:thing"       | [':', ':include', ':include:child']             | [':', ':include']
+        ":inner-include:thing"       | [':', ':inner-include']                         | [':', ':inner-include']
+        ":inner-include:child:thing" | [':', ':inner-include', ':inner-include:child'] | [':', ':inner-include']
     }
 }
