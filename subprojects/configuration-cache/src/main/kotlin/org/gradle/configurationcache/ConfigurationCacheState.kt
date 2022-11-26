@@ -56,7 +56,7 @@ import org.gradle.initialization.RootBuildCacheControllerSettingsProcessor
 import org.gradle.internal.Actions
 import org.gradle.internal.build.BuildProjectRegistry
 import org.gradle.internal.build.BuildStateRegistry
-import org.gradle.internal.build.NestedBuildState
+import org.gradle.internal.build.IncludedBuildState
 import org.gradle.internal.build.PublicBuildPath
 import org.gradle.internal.build.RootBuildState
 import org.gradle.internal.build.event.BuildEventListenerRegistryInternal
@@ -124,16 +124,18 @@ class ConfigurationCacheState(
 
     private
     fun identifyBuild(state: CachedBuildState) {
-        val gradle = state.build.gradle
-        val identityPath = gradle.identityPath.toString()
+        val identityPath = state.identityPath.toString()
 
         eventEmitter.emitNowForCurrent(BuildIdentifiedProgressDetails { identityPath })
 
-        val projects = convertProjects(state.projects, gradle.rootProject.name)
-        eventEmitter.emitNowForCurrent(object : ProjectsIdentifiedProgressDetails {
-            override fun getBuildPath() = identityPath
-            override fun getRootProject() = projects
-        })
+        if (state is BuildWithWork) {
+            val gradle = state.build.gradle
+            val projects = convertProjects(state.projects, gradle.rootProject.name)
+            eventEmitter.emitNowForCurrent(object : ProjectsIdentifiedProgressDetails {
+                override fun getBuildPath() = identityPath
+                override fun getRootProject() = projects
+            })
+        }
     }
 
     private fun convertProjects(projects: List<CachedProjectState>, rootProjectName: String): ProjectsIdentifiedProgressDetails.Project {
@@ -161,8 +163,10 @@ class ConfigurationCacheState(
     fun calculateRootTaskGraph(builds: List<CachedBuildState>, graph: BuildTreeWorkGraph): BuildTreeWorkGraph.FinalizedGraph {
         return graph.scheduleWork { builder ->
             for (build in builds) {
-                builder.withWorkGraph(build.build.state) {
-                    it.setScheduledNodes(build.workGraph)
+                if (build is BuildWithWork) {
+                    builder.withWorkGraph(build.build.state) {
+                        it.setScheduledNodes(build.workGraph)
+                    }
                 }
             }
         }
@@ -198,17 +202,13 @@ class ConfigurationCacheState(
 
     private
     suspend fun DefaultWriteContext.writeBuildsInTree(buildEventListeners: List<RegisteredBuildServiceProvider<*, *>>) {
-        // Collect builds with work scheduled
-        val relevantBuilds = mutableListOf<VintageGradleBuild>()
-        host.visitBuilds { build ->
-            if (build.hasScheduledWork || build.gradle.isRootBuild) {
-                relevantBuilds.add(build)
-            }
-        }
-
-        // Write the builds
         val requiredBuildServicesPerBuild = buildEventListeners.groupBy { it.buildIdentifier }
-        writeCollection(relevantBuilds) { build ->
+        val builds = mutableListOf<BuildToStore>()
+        host.visitBuilds { build ->
+            val hasWork = build.hasScheduledWork || build.isRootBuild
+            builds.add(BuildToStore(build, hasWork))
+        }
+        writeCollection(builds) { build ->
             writeBuildState(
                 build,
                 StoredBuildTreeState(
@@ -229,16 +229,23 @@ class ConfigurationCacheState(
     }
 
     private
-    suspend fun DefaultWriteContext.writeBuildState(build: VintageGradleBuild, buildTreeState: StoredBuildTreeState) {
-        val gradle = build.gradle
-        val state = build.gradle.owner
+    suspend fun DefaultWriteContext.writeBuildState(build: BuildToStore, buildTreeState: StoredBuildTreeState) {
+        if (!build.hasWork) {
+            writeBoolean(false)
+            writeString(build.build.state.identityPath.path)
+            return
+        } else {
+            writeBoolean(true)
+        }
+        val state = build.build.state
+        val gradle = state.mutableModel
         if (state is RootBuildState) {
             writeBoolean(true)
-            writeBuildContentState(build, buildTreeState)
+            writeBuildContentState(build.build, buildTreeState)
         } else {
-            require(state is NestedBuildState)
+            require(state is IncludedBuildState)
             writeBoolean(false)
-            withGradleIsolate(build.gradle, userTypesCodec) {
+            withGradleIsolate(gradle, userTypesCodec) {
                 write(gradle.settings.settingsScript.resource.file)
                 writeString(gradle.rootProject.name)
                 writeBuildDefinition(state.buildDefinition)
@@ -252,6 +259,10 @@ class ConfigurationCacheState(
 
     private
     suspend fun DefaultReadContext.readBuildState(rootBuild: ConfigurationCacheBuild): CachedBuildState {
+        if (!readBoolean()) {
+            val identityPath = Path.path(readString())
+            return BuildWithNoWork(identityPath)
+        }
         return if (readBoolean()) {
             readBuildContentState(rootBuild)
         } else {
@@ -302,7 +313,7 @@ class ConfigurationCacheState(
 
         val workGraph = readWorkGraph(gradle)
         readBuildOutputCleanupRegistrations(gradle)
-        return CachedBuildState(build, projects, workGraph)
+        return BuildWithWork(build.state.identityPath, build, projects, workGraph)
     }
 
     private
