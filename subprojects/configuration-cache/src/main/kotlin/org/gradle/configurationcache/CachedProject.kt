@@ -19,11 +19,19 @@ package org.gradle.configurationcache
 import org.gradle.normalization.internal.InputNormalizationHandlerInternal
 import java.io.File
 
-internal sealed class CachedProject(val path: String)
 
-internal class ProjectWithWork(path: String,
-                               val projectDir: File,
-                               val buildDir: File,
-                               val normalizationState: InputNormalizationHandlerInternal.CachedState?) : CachedProject(path)
+internal
+sealed class CachedProject(val path: String)
 
-internal class ProjectWithNoWork(path: String) : CachedProject(path)
+
+internal
+class ProjectWithWork(
+    path: String,
+    val projectDir: File,
+    val buildDir: File,
+    val normalizationState: InputNormalizationHandlerInternal.CachedState?
+) : CachedProject(path)
+
+
+internal
+class ProjectWithNoWork(path: String) : CachedProject(path)
