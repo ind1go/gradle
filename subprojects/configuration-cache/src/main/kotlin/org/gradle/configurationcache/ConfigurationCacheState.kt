@@ -138,7 +138,8 @@ class ConfigurationCacheState(
         }
     }
 
-    private fun convertProjects(projects: List<CachedProjectState>, rootProjectName: String): ProjectsIdentifiedProgressDetails.Project {
+    private
+    fun convertProjects(projects: List<CachedProjectState>, rootProjectName: String): ProjectsIdentifiedProgressDetails.Project {
         val children = projects.groupBy { it.path.parent }
         val converted = mutableMapOf<Path, BuildStructureOperationProject>()
         for (project in projects) {
@@ -147,10 +148,13 @@ class ConfigurationCacheState(
         return converted.getValue(Path.ROOT)
     }
 
-    private fun convertProject(converted: MutableMap<Path, BuildStructureOperationProject>,
-                               project: CachedProjectState,
-                               rootProjectName: String,
-                               children: Map<Path?, List<CachedProjectState>>): BuildStructureOperationProject {
+    private
+    fun convertProject(
+        converted: MutableMap<Path, BuildStructureOperationProject>,
+        project: CachedProjectState,
+        rootProjectName: String,
+        children: Map<Path?, List<CachedProjectState>>
+    ): BuildStructureOperationProject {
         val childProjects = children.getOrDefault(project.path, emptyList()).map { convertProject(converted, it, rootProjectName, children) }.toSet()
         return converted.computeIfAbsent(project.path) {
             // Root project name is serialized separately, could perhaps move it to this cached project state
