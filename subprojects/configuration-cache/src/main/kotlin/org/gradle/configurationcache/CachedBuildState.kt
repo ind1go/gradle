@@ -18,6 +18,7 @@ package org.gradle.configurationcache
 
 import org.gradle.execution.plan.Node
 import org.gradle.normalization.internal.InputNormalizationHandlerInternal
+import org.gradle.util.Path
 import java.io.File
 
 
@@ -25,20 +26,28 @@ import java.io.File
  * State cached for a project.
  */
 internal
-sealed class CachedProjectState(val path: String)
+sealed class CachedProjectState(
+    val path: Path,
+    val projectDir: File,
+    val buildDir: File
+)
 
 
 internal
 class ProjectWithWork(
-    path: String,
-    val projectDir: File,
-    val buildDir: File,
+    path: Path,
+    projectDir: File,
+    buildDir: File,
     val normalizationState: InputNormalizationHandlerInternal.CachedState?
-) : CachedProjectState(path)
+) : CachedProjectState(path, projectDir, buildDir)
 
 
 internal
-class ProjectWithNoWork(path: String) : CachedProjectState(path)
+class ProjectWithNoWork(
+    path: Path,
+    projectDir: File,
+    buildDir: File
+) : CachedProjectState(path, projectDir, buildDir)
 
 
 /**

@@ -125,12 +125,37 @@ class ConfigurationCacheState(
     private
     fun identifyBuild(state: CachedBuildState) {
         val gradle = state.build.gradle
-        eventEmitter.emitNowForCurrent(BuildIdentifiedProgressDetails { gradle.identityPath.toString() })
+        val identityPath = gradle.identityPath.toString()
+
+        eventEmitter.emitNowForCurrent(BuildIdentifiedProgressDetails { identityPath })
+
+        val projects = convertProjects(state.projects, gradle.rootProject.name)
         eventEmitter.emitNowForCurrent(object : ProjectsIdentifiedProgressDetails {
-            override fun getBuildPath() = gradle.identityPath.toString()
-            override fun getRootProject() = BuildStructureOperationProject.from(gradle)
+            override fun getBuildPath() = identityPath
+            override fun getRootProject() = projects
         })
         state.children.forEach(::identifyBuild)
+    }
+
+    private fun convertProjects(projects: List<CachedProjectState>, rootProjectName: String): ProjectsIdentifiedProgressDetails.Project {
+        val children = projects.groupBy { it.path.parent }
+        val converted = mutableMapOf<Path, BuildStructureOperationProject>()
+        for (project in projects) {
+            convertProject(converted, project, rootProjectName, children)
+        }
+        return converted.getValue(Path.ROOT)
+    }
+
+    private fun convertProject(converted: MutableMap<Path, BuildStructureOperationProject>,
+                               project: CachedProjectState,
+                               rootProjectName: String,
+                               children: Map<Path?, List<CachedProjectState>>): BuildStructureOperationProject {
+        val childProjects = children.getOrDefault(project.path, emptyList()).map { convertProject(converted, it, rootProjectName, children) }.toSet()
+        return converted.computeIfAbsent(project.path) {
+            // Root project name is serialized separately, could perhaps move it to the cached project state
+            val projectName = project.path.name ?: rootProjectName
+            BuildStructureOperationProject(projectName, project.path.path, project.path.path, project.projectDir.absolutePath, project.buildDir.absolutePath, childProjects)
+        }
     }
 
     private
@@ -264,7 +289,7 @@ class ConfigurationCacheState(
     fun applyProjectStates(projects: List<CachedProjectState>, gradle: GradleInternal) {
         for (project in projects) {
             if (project is ProjectWithWork && project.normalizationState != null) {
-                val projectState = gradle.owner.projects.getProject(Path.path(project.path))
+                val projectState = gradle.owner.projects.getProject(project.path)
                 projectState.mutableModel.normalization.configureFromCachedState(project.normalizationState)
             }
         }
@@ -617,12 +642,12 @@ class ConfigurationCacheState(
     fun collectProjects(projects: BuildProjectRegistry, nodes: List<Node>, relevantProjectsRegistry: RelevantProjectsRegistry): List<CachedProjectState> {
         val relevantProjects = relevantProjectsRegistry.relevantProjects(nodes)
         return projects.allProjects.map { project ->
+            val mutableModel = project.mutableModel
+            mutableModel.layout.buildDirectory.finalizeValue()
             if (relevantProjects.contains(project)) {
-                val mutableModel = project.mutableModel
-                mutableModel.layout.buildDirectory.finalizeValue()
-                ProjectWithWork(project.projectPath.path, mutableModel.projectDir, mutableModel.buildDir, mutableModel.normalization.computeCachedState())
+                ProjectWithWork(project.projectPath, mutableModel.projectDir, mutableModel.buildDir, mutableModel.normalization.computeCachedState())
             } else {
-                ProjectWithNoWork(project.projectPath.path)
+                ProjectWithNoWork(project.projectPath, mutableModel.projectDir, mutableModel.buildDir)
             }
         }
     }

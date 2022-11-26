@@ -124,34 +124,16 @@ class ConfigurationCacheBuildTreeStructureIntegrationTest extends AbstractConfig
                 details.rootProject.name == 'thing'
                 details.rootProject.path == ':'
                 details.rootProject.projectDir == testDirectory.absolutePath
-
-                // TODO The following demonstrates that this event currently only conveys the “used” part of the project structure.
-                // This needs to be updated to convey the entirety of the structure.
-
-                if (tasks == [":help"]) {
-                    assert details.rootProject.children.empty
-                }
-                if (tasks == [":a:thing"]) {
-                    assert details.rootProject.children.size() == 1
-                    with(details.rootProject.children.first() as Map<String, Object>) {
-                        name == 'a'
-                        path == ':a'
-                        projectDir == file('a').absolutePath
-                        children.empty
-                    }
-                }
-                if (tasks == [":a:b:thing"]) {
-                    assert details.rootProject.children.size() == 1
-                    with(details.rootProject.children.first() as Map<String, Object>) {
-                        name == 'a'
-                        path == ':a'
-                        projectDir == file('a').absolutePath
-                        children.size() == 1
-                        with(children.first() as Map<String, Object>) {
-                            name == 'b'
-                            path == ':a:b'
-                            projectDir == file('custom').absolutePath
-                        }
+                details.rootProject.children.size() == 3
+                with(details.rootProject.children.first() as Map<String, Object>) {
+                    name == 'a'
+                    path == ':a'
+                    projectDir == file('a').absolutePath
+                    children.size() == 1
+                    with(children.first() as Map<String, Object>) {
+                        name == 'b'
+                        path == ':a:b'
+                        projectDir == file('custom').absolutePath
                     }
                 }
             }
@@ -241,18 +223,16 @@ class ConfigurationCacheBuildTreeStructureIntegrationTest extends AbstractConfig
             it.find { it.details.buildPath == ":include" }
             it.find { it.details.buildPath == ":inner-include" }
         }
-        // TODO The following demonstrates that this event currently only conveys the “used” part of the project structure.
-        // This needs to be updated to convey the entirety of the structure.
         with(fixture.progress(ProjectsIdentifiedProgressDetails)) {
             size() == 3
             with(it.find { it.details.buildPath == ":" }) {
-                details.rootProject.children.size() == (task in [":child:thing"] ? 1 : 0)
+                details.rootProject.children.size() == 1
             }
             with(it.find { it.details.buildPath == ":include" }) {
-                details.rootProject.children.size() == (task in [":include:child:thing"] ? 1 : 0)
+                details.rootProject.children.size() == 1
             }
             with(it.find { it.details.buildPath == ":inner-include" }) {
-                details.rootProject.children.size() == (task in [":inner-include:child:thing"] ? 1 : 0)
+                details.rootProject.children.size() == 1
             }
         }
 
