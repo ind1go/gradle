@@ -18,14 +18,8 @@ package org.gradle.configurationcache
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.initialization.BuildIdentifiedProgressDetails
-import org.gradle.initialization.LoadBuildBuildOperationType
-import org.gradle.initialization.LoadProjectsBuildOperationType
-import org.gradle.initialization.ProjectsIdentifiedProgressDetails
 import org.gradle.initialization.StartParameterBuildOptions.ConfigurationCacheRecreateOption
-import org.gradle.integtests.fixtures.BuildOperationsFixture
 import org.gradle.integtests.fixtures.configurationcache.ConfigurationCacheFixture
-import org.gradle.internal.build.BuildStateRegistry
 import spock.lang.Issue
 
 class ConfigurationCacheIntegrationTest extends AbstractConfigurationCacheIntegrationTest {
