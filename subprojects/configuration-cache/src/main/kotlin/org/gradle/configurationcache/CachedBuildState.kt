@@ -16,6 +16,7 @@
 
 package org.gradle.configurationcache
 
+import org.gradle.api.artifacts.component.BuildIdentifier
 import org.gradle.execution.plan.Node
 import org.gradle.normalization.internal.InputNormalizationHandlerInternal
 import org.gradle.util.Path
@@ -70,7 +71,8 @@ class BuildWithWork(
     val build: ConfigurationCacheBuild,
     rootProjectName: String,
     projects: List<CachedProjectState>,
-    val workGraph: List<Node>
+    val workGraph: List<Node>,
+    val includedBuilds: List<BuildIdentifier>
 ) : CachedBuildState(identityPath, rootProjectName, projects)
 
 

@@ -213,7 +213,6 @@ class ConfigurationCacheState(
             writeBuildState(
                 build,
                 StoredBuildTreeState(
-                    storedBuilds = storedBuilds(),
                     requiredBuildServicesPerBuild = requiredBuildServicesPerBuild
                 ),
                 host.currentBuild
@@ -297,17 +296,17 @@ class ConfigurationCacheState(
     internal
     suspend fun DefaultWriteContext.writeBuildContentState(build: VintageGradleBuild, buildTreeState: StoredBuildTreeState) {
         val gradle = build.gradle
+        val scheduledNodes = build.scheduledWork
         withDebugFrame({ "Gradle" }) {
-            writeGradleState(gradle, buildTreeState)
-        }
-        withDebugFrame({ "Work Graph" }) {
-            val scheduledNodes = build.scheduledWork
+            writeGradleState(gradle)
             val projects = collectProjects(gradle.owner.projects, scheduledNodes, gradle.serviceOf())
             writeProjects(gradle, projects)
             writeRequiredBuildServicesOf(gradle, buildTreeState)
+        }
+        withDebugFrame({ "Work Graph" }) {
             writeWorkGraphOf(gradle, scheduledNodes)
         }
-        withDebugFrame({ "cleanup registrations" }) {
+        withDebugFrame({ "Cleanup registrations" }) {
             writeBuildOutputCleanupRegistrations(gradle)
         }
     }
@@ -316,7 +315,7 @@ class ConfigurationCacheState(
     suspend fun DefaultReadContext.readBuildContentState(build: ConfigurationCacheBuild): CachedBuildState {
         val gradle = build.gradle
 
-        readGradleState(build)
+        val includedBuilds = readGradleState(build)
 
         val projects = readProjects(gradle, build)
 
@@ -329,7 +328,7 @@ class ConfigurationCacheState(
 
         val workGraph = readWorkGraph(gradle)
         readBuildOutputCleanupRegistrations(gradle)
-        return BuildWithWork(build.state.identityPath, build, gradle.rootProject.name, projects, workGraph)
+        return BuildWithWork(build.state.identityPath, build, gradle.rootProject.name, projects, workGraph, includedBuilds)
     }
 
     private
@@ -418,25 +417,23 @@ class ConfigurationCacheState(
     }
 
     private
-    suspend fun DefaultWriteContext.writeGradleState(gradle: GradleInternal, buildTreeState: StoredBuildTreeState) {
+    suspend fun DefaultWriteContext.writeGradleState(gradle: GradleInternal) {
         withGradleIsolate(gradle, userTypesCodec) {
             // per build
             writeStartParameterOf(gradle)
-            withDebugFrame({ "included builds" }) {
-                writeChildBuilds(gradle, buildTreeState)
-            }
+            writeChildBuilds(gradle)
         }
     }
 
     private
     suspend fun DefaultReadContext.readGradleState(
         build: ConfigurationCacheBuild
-    ) {
+    ): List<BuildIdentifier> {
         val gradle = build.gradle
-        withGradleIsolate(gradle, userTypesCodec) {
+        return withGradleIsolate(gradle, userTypesCodec) {
             // per build
             readStartParameterOf(gradle)
-            readChildBuildsOf(build)
+            readChildBuilds()
         }
     }
 
@@ -455,9 +452,9 @@ class ConfigurationCacheState(
     }
 
     private
-    suspend fun DefaultWriteContext.writeChildBuilds(gradle: GradleInternal, buildTreeState: StoredBuildTreeState) {
+    suspend fun DefaultWriteContext.writeChildBuilds(gradle: GradleInternal) {
         writeCollection(gradle.includedBuilds()) {
-            writeString(it.target.buildIdentifier.name)
+            write(it.target.buildIdentifier)
         }
         if (gradle.serviceOf<VcsMappingsStore>().asResolver().hasRules()) {
             logNotImplemented(
@@ -471,11 +468,9 @@ class ConfigurationCacheState(
     }
 
     private
-    suspend fun DefaultReadContext.readChildBuildsOf(
-        parentBuild: ConfigurationCacheBuild
-    ) {
+    suspend fun DefaultReadContext.readChildBuilds(): List<BuildIdentifier> {
         val includedBuilds = readList {
-            readString()
+            readNonNull<BuildIdentifier>()
         }
         if (readBoolean()) {
             logNotImplemented(
@@ -483,7 +478,7 @@ class ConfigurationCacheState(
                 documentationSection = NotYetImplementedSourceDependencies
             )
         }
-        parentBuild.gradle.setIncludedBuilds(emptyList())
+        return includedBuilds
     }
 
     private
@@ -689,13 +684,6 @@ class ConfigurationCacheState(
         get() = codecs.userTypesCodec()
 
     private
-    fun storedBuilds() = object : StoredBuilds {
-        val buildRootDirs = hashSetOf<File>()
-        override fun store(build: BuildDefinition): Boolean =
-            buildRootDirs.add(build.buildRootDir!!)
-    }
-
-    private
     fun buildIdentifierOf(gradle: GradleInternal) =
         gradle.owner.buildIdentifier
 
@@ -718,16 +706,6 @@ class ConfigurationCacheState(
 
 internal
 class StoredBuildTreeState(
-    val storedBuilds: StoredBuilds,
     val requiredBuildServicesPerBuild: Map<BuildIdentifier, List<BuildServiceProvider<*, *>>>
 )
 
-
-internal
-interface StoredBuilds {
-    /**
-     * Returns true if this is the first time the given [build] is seen and its state should be stored to the cache.
-     * Returns false if the build has already been stored to the cache.
-     */
-    fun store(build: BuildDefinition): Boolean
-}
