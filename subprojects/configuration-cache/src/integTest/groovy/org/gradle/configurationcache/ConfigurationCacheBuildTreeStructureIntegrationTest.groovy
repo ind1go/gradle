@@ -36,7 +36,9 @@ class ConfigurationCacheBuildTreeStructureIntegrationTest extends AbstractConfig
                             def builds = []
                             registry.visitBuilds { b ->
                                 builds.add(b.identityPath.path)
-                                projects.addAll(b.projects.allProjects.collect { p -> p.identityPath.path })
+                                if (b.projectsLoaded) {
+                                    projects.addAll(b.projects.allProjects.collect { p -> p.identityPath.path })
+                                }
                             }
                             println "projects = " + projects
                             println "builds = " + builds
@@ -149,6 +151,113 @@ class ConfigurationCacheBuildTreeStructureIntegrationTest extends AbstractConfig
         [":thing"]     | [':']
         [":a:thing"]   | [':', ':a']
         [":a:b:thing"] | [':', ':a', ':a:b']
+    }
+
+    def "restores only projects that have work scheduled when buildSrc present"() {
+        def fixture = new BuildOperationsFixture(executer, temporaryFolder)
+        settingsFile << """
+            rootProject.name = 'thing'
+            include 'a', 'b', 'c'
+        """
+        defineTaskInSettings(settingsFile)
+        file("buildSrc/settings.gradle") << """
+            include 'a', 'b'
+        """
+        file("buildSrc/src/main/java/Lib.java") << """
+            class Lib { }
+        """
+
+        when:
+        configurationCacheRun(":a:thing")
+
+        then:
+        with(fixture.all(LoadBuildBuildOperationType)) {
+            size() == 2
+            with(get(0)) {
+                details.buildPath == ':'
+            }
+            with(get(1)) {
+                details.buildPath == ':buildSrc'
+            }
+        }
+        with(fixture.all(LoadProjectsBuildOperationType)) {
+            size() == 2
+            with(get(0)) {
+                result.rootProject.name == 'thing'
+                result.rootProject.path == ':'
+                result.rootProject.children.size() == 3
+                with(result.rootProject.children.first() as Map<String, Object>) {
+                    name == 'a'
+                    path == ':a'
+                    projectDir == file('a').absolutePath
+                    children.empty
+                }
+            }
+            with(get(1)) {
+                result.rootProject.name == 'buildSrc'
+                result.rootProject.path == ':'
+                result.rootProject.children.size() == 2
+            }
+        }
+        with(fixture.progress(BuildIdentifiedProgressDetails)) {
+            size() == 2
+            with(get(0)) {
+                details.buildPath == ':'
+            }
+            with(get(1)) {
+                details.buildPath == ':buildSrc'
+            }
+        }
+        with(fixture.progress(ProjectsIdentifiedProgressDetails)) {
+            size() == 2
+            with(get(0)) {
+                details.rootProject.name == 'thing'
+                details.rootProject.path == ':'
+                details.rootProject.projectDir == testDirectory.absolutePath
+                details.rootProject.children.size() == 3
+                with(details.rootProject.children.first() as Map<String, Object>) {
+                    name == 'a'
+                    path == ':a'
+                    projectDir == file('a').absolutePath
+                    children.empty
+                }
+            }
+        }
+
+        when:
+        configurationCacheRun(":a:thing")
+
+        then:
+        outputContains("builds = [:, :buildSrc]")
+        outputContains("projects = [:, :a]")
+        fixture.none(LoadBuildBuildOperationType)
+        fixture.none(LoadProjectsBuildOperationType)
+        with(fixture.progress(BuildIdentifiedProgressDetails)) {
+            with(fixture.progress(BuildIdentifiedProgressDetails)) {
+                size() == 2
+                with(get(0)) {
+                    details.buildPath == ':'
+                }
+                with(get(1)) {
+                    details.buildPath == ':buildSrc'
+                }
+            }
+        }
+        with(fixture.progress(ProjectsIdentifiedProgressDetails)) {
+            size() == 2
+            with(first()) {
+                details.rootProject.name == 'thing'
+                details.rootProject.path == ':'
+                details.rootProject.projectDir == testDirectory.absolutePath
+                details.rootProject.children.size() == 3
+                with(details.rootProject.children.first() as Map<String, Object>) {
+                    name == 'a'
+                    path == ':a'
+                    projectDir == file('a').absolutePath
+                    children.empty
+                }
+            }
+        }
     }
 
     def "restores only builds and projects of included build that have work scheduled"(String task) {
