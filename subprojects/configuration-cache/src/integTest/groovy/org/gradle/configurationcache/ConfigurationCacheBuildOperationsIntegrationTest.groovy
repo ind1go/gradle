@@ -30,7 +30,6 @@ import org.gradle.internal.configurationcache.ConfigurationCacheStoreBuildOperat
 import org.gradle.internal.taskgraph.CalculateTaskGraphBuildOperationType
 import org.gradle.internal.taskgraph.CalculateTreeTaskGraphBuildOperationType
 import org.gradle.test.fixtures.file.TestFile
-import org.gradle.util.internal.ToBeImplemented
 
 class ConfigurationCacheBuildOperationsIntegrationTest extends AbstractConfigurationCacheIntegrationTest {
 
@@ -144,10 +143,9 @@ class ConfigurationCacheBuildOperationsIntegrationTest extends AbstractConfigura
         configurationCacheRun 'help'
 
         then:
-        compositeBuildWorkGraphLoaded()
+        compositeBuildRootBuildWorkGraphLoaded()
     }
 
-    @ToBeImplemented("progress events are not fired for buildSrc")
     def "emits relevant build operations when configuration cache is used - buildSrc"() {
         given:
         withBuildSrc()
@@ -166,13 +164,15 @@ class ConfigurationCacheBuildOperationsIntegrationTest extends AbstractConfigura
         hasOperationsForLoad()
 
         operations.none(ConfigurationCacheStoreBuildOperationType)
-        operations.progress(BuildIdentifiedProgressDetails).size() == 1 // Not yet fired for buildSrc
+        operations.progress(BuildIdentifiedProgressDetails).size() == 2
         operations.none(LoadBuildBuildOperationType)
         operations.none(LoadProjectsBuildOperationType)
-        operations.progress(ProjectsIdentifiedProgressDetails).size() == 1 // Not yet fired for buildSrc
+        operations.progress(ProjectsIdentifiedProgressDetails).size() == 2
         operations.none(EvaluateSettingsBuildOperationType)
         operations.none(ConfigureBuildBuildOperationType)
         operations.none(ConfigureProjectBuildOperationType)
+
+        compositeBuildRootBuildWorkGraphLoaded(':buildSrc')
     }
 
     private void workGraphStored() {
@@ -310,6 +310,21 @@ class ConfigurationCacheBuildOperationsIntegrationTest extends AbstractConfigura
         operations.none(ConfigureProjectBuildOperationType)
 
         hasCompositeBuildsWorkGraphPopulated()
+    }
+
+    private void compositeBuildRootBuildWorkGraphLoaded(String childBuild = ':lib') {
+        hasOperationsForLoad()
+        compositeBuildsIdentified(childBuild)
+
+        operations.none(LoadBuildBuildOperationType)
+        operations.none(LoadProjectsBuildOperationType)
+        operations.none(EvaluateSettingsBuildOperationType)
+        operations.none(ConfigureBuildBuildOperationType)
+        operations.none(ConfigureProjectBuildOperationType)
+
+        operations.only(CalculateTreeTaskGraphBuildOperationType)
+        operations.only(CalculateTaskGraphBuildOperationType)
+        operations.only(NotifyTaskGraphWhenReadyBuildOperationType)
     }
 
     private void buildIdentified() {

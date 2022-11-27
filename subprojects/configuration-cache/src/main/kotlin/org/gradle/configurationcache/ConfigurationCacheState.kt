@@ -128,14 +128,11 @@ class ConfigurationCacheState(
 
         eventEmitter.emitNowForCurrent(BuildIdentifiedProgressDetails { identityPath })
 
-        if (state is BuildWithWork) {
-            val gradle = state.build.gradle
-            val projects = convertProjects(state.projects, gradle.rootProject.name)
-            eventEmitter.emitNowForCurrent(object : ProjectsIdentifiedProgressDetails {
-                override fun getBuildPath() = identityPath
-                override fun getRootProject() = projects
-            })
-        }
+        val projects = convertProjects(state.projects, state.rootProjectName)
+        eventEmitter.emitNowForCurrent(object : ProjectsIdentifiedProgressDetails {
+            override fun getBuildPath() = identityPath
+            override fun getRootProject() = projects
+        })
     }
 
     private
@@ -218,7 +215,8 @@ class ConfigurationCacheState(
                 StoredBuildTreeState(
                     storedBuilds = storedBuilds(),
                     requiredBuildServicesPerBuild = requiredBuildServicesPerBuild
-                )
+                ),
+                host.currentBuild
             )
         }
     }
@@ -233,15 +231,21 @@ class ConfigurationCacheState(
     }
 
     private
-    suspend fun DefaultWriteContext.writeBuildState(build: BuildToStore, buildTreeState: StoredBuildTreeState) {
-        if (!build.hasWork) {
-            writeBoolean(false)
-            writeString(build.build.state.identityPath.path)
-            return
-        } else {
-            writeBoolean(true)
-        }
+    suspend fun DefaultWriteContext.writeBuildState(build: BuildToStore, buildTreeState: StoredBuildTreeState, rootBuild: VintageGradleBuild) {
         val state = build.build.state
+        if (!build.hasWork) {
+            withGradleIsolate(rootBuild.gradle, userTypesCodec) {
+                writeBoolean(false)
+                writeString(state.identityPath.path)
+                writeString(state.projects.rootProject.name)
+                writeCollection(state.projects.allProjects) { project ->
+                    write(ProjectWithNoWork(project.projectPath, project.mutableModel.projectDir, project.mutableModel.buildDir))
+                }
+            }
+            return
+        }
+
+        writeBoolean(true)
         val gradle = state.mutableModel
         if (state is RootBuildState) {
             writeBoolean(true)
@@ -264,12 +268,20 @@ class ConfigurationCacheState(
     private
     suspend fun DefaultReadContext.readBuildState(rootBuild: ConfigurationCacheBuild): CachedBuildState {
         if (!readBoolean()) {
-            val identityPath = Path.path(readString())
-            return BuildWithNoWork(identityPath)
+            // A build with no work
+            withGradleIsolate(rootBuild.gradle, userTypesCodec) {
+                val identityPath = Path.path(readString())
+                val rootProjectName = readString()
+                val projects = readList() as List<ProjectWithNoWork>
+                return BuildWithNoWork(identityPath, rootProjectName, projects)
+            }
         }
+
         return if (readBoolean()) {
+            // The root build
             readBuildContentState(rootBuild)
         } else {
+            // An included build
             lateinit var definition: BuildDefinition
             val build = withGradleIsolate(rootBuild.gradle, userTypesCodec) {
                 val settingsFile = read() as File?
@@ -317,7 +329,7 @@ class ConfigurationCacheState(
 
         val workGraph = readWorkGraph(gradle)
         readBuildOutputCleanupRegistrations(gradle)
-        return BuildWithWork(build.state.identityPath, build, projects, workGraph)
+        return BuildWithWork(build.state.identityPath, build, gradle.rootProject.name, projects, workGraph)
     }
 
     private

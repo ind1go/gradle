@@ -58,7 +58,9 @@ data class BuildToStore(val build: VintageGradleBuild, val hasWork: Boolean)
  */
 internal
 sealed class CachedBuildState(
-    val identityPath: Path
+    val identityPath: Path,
+    val rootProjectName: String,
+    val projects: List<CachedProjectState>,
 )
 
 
@@ -66,12 +68,15 @@ internal
 class BuildWithWork(
     identityPath: Path,
     val build: ConfigurationCacheBuild,
-    val projects: List<CachedProjectState>,
+    rootProjectName: String,
+    projects: List<CachedProjectState>,
     val workGraph: List<Node>
-) : CachedBuildState(identityPath)
+) : CachedBuildState(identityPath, rootProjectName, projects)
 
 
 internal
 class BuildWithNoWork(
-    identityPath: Path
-) : CachedBuildState(identityPath)
+    identityPath: Path,
+    rootProjectName: String,
+    projects: List<ProjectWithNoWork>
+) : CachedBuildState(identityPath, rootProjectName, projects)
