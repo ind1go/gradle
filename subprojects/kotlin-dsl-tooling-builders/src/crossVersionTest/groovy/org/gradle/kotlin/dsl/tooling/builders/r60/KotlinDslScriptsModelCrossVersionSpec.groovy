@@ -50,6 +50,7 @@ class KotlinDslScriptsModelCrossVersionSpec extends AbstractKotlinDslScriptsMode
             assert singleRequestModels[script].classPath == multiRequestsModels[script].classPath
             assert singleRequestModels[script].sourcePath == multiRequestsModels[script].sourcePath
             assert singleRequestModels[script].implicitImports == multiRequestsModels[script].implicitImports
+            assert false
         }
     }
 
