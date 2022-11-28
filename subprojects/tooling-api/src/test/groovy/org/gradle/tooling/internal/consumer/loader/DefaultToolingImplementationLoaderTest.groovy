@@ -31,9 +31,7 @@ import org.gradle.tooling.internal.consumer.connection.PhasedActionAwareConsumer
 import org.gradle.tooling.internal.consumer.connection.TestExecutionConsumerConnection
 import org.gradle.tooling.internal.consumer.connection.UnsupportedOlderVersionConnection
 import org.gradle.tooling.internal.protocol.BuildExceptionVersion1
-import org.gradle.tooling.internal.protocol.BuildOperationParametersVersion1
 import org.gradle.tooling.internal.protocol.BuildParameters
-import org.gradle.tooling.internal.protocol.BuildParametersVersion1
 import org.gradle.tooling.internal.protocol.BuildResult
 import org.gradle.tooling.internal.protocol.ConfigurableConnection
 import org.gradle.tooling.internal.protocol.ConnectionMetaDataVersion1
@@ -46,14 +44,12 @@ import org.gradle.tooling.internal.protocol.InternalBuildCancelledException
 import org.gradle.tooling.internal.protocol.InternalBuildProgressListener
 import org.gradle.tooling.internal.protocol.InternalCancellableConnection
 import org.gradle.tooling.internal.protocol.InternalCancellationToken
-
 import org.gradle.tooling.internal.protocol.InternalParameterAcceptingConnection
 import org.gradle.tooling.internal.protocol.InternalPhasedAction
 import org.gradle.tooling.internal.protocol.InternalPhasedActionConnection
 import org.gradle.tooling.internal.protocol.InternalUnsupportedModelException
 import org.gradle.tooling.internal.protocol.ModelIdentifier
 import org.gradle.tooling.internal.protocol.PhasedActionResultListener
-import org.gradle.tooling.internal.protocol.ProjectVersion3
 import org.gradle.tooling.internal.protocol.ShutdownParameters
 import org.gradle.tooling.internal.protocol.StoppableConnection
 import org.gradle.tooling.internal.protocol.exceptions.InternalUnsupportedBuildArgumentException
@@ -273,13 +269,5 @@ class TestR10M3Connection implements ConnectionVersion4 {
 
     ConnectionMetaDataVersion1 getMetaData() {
         return new TestMetaData('1.0-milestone-3')
-    }
-
-    ProjectVersion3 getModel(Class<? extends ProjectVersion3> type, BuildOperationParametersVersion1 operationParameters) {
-        throw new UnsupportedOperationException()
-    }
-
-    void executeBuild(BuildParametersVersion1 buildParameters, BuildOperationParametersVersion1 operationParameters) {
-        throw new UnsupportedOperationException()
     }
 }
