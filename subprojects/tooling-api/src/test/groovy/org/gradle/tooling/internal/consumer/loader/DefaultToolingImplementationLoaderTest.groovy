@@ -37,7 +37,6 @@ import org.gradle.tooling.internal.protocol.ConfigurableConnection
 import org.gradle.tooling.internal.protocol.ConnectionMetaDataVersion1
 import org.gradle.tooling.internal.protocol.ConnectionVersion4
 import org.gradle.tooling.internal.protocol.InternalBuildAction
-import org.gradle.tooling.internal.protocol.InternalBuildActionExecutor
 import org.gradle.tooling.internal.protocol.InternalBuildActionFailureException
 import org.gradle.tooling.internal.protocol.InternalBuildActionVersion2
 import org.gradle.tooling.internal.protocol.InternalBuildCancelledException
@@ -217,16 +216,6 @@ class TestR21Connection extends TestR18Connection implements InternalCancellable
 
     ConnectionMetaDataVersion1 getMetaData() {
         return new TestMetaData('2.1')
-    }
-}
-
-class TestR18Connection implements InternalBuildActionExecutor {
-    def <T> BuildResult<T> run(InternalBuildAction<T> action, BuildParameters operationParameters) throws BuildExceptionVersion1, InternalUnsupportedBuildArgumentException, IllegalStateException {
-        throw new UnsupportedOperationException()
-    }
-
-    ConnectionMetaDataVersion1 getMetaData() {
-        return new TestMetaData('1.8')
     }
 }
 

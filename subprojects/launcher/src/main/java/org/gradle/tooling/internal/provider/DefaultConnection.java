@@ -66,7 +66,7 @@ import java.util.List;
 
 @SuppressWarnings("deprecation")
 public class DefaultConnection implements ConnectionVersion4,
-    ConfigurableConnection, org.gradle.tooling.internal.protocol.InternalBuildActionExecutor, InternalCancellableConnection, InternalParameterAcceptingConnection,
+    ConfigurableConnection, InternalCancellableConnection, InternalParameterAcceptingConnection,
     StoppableConnection, InternalTestExecutionConnection, InternalPhasedActionConnection, InternalInvalidatableVirtualFileSystemConnection, InternalStopWhenIdleConnection {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultConnection.class);
@@ -157,14 +157,6 @@ public class DefaultConnection implements ConnectionVersion4,
         BuildCancellationToken buildCancellationToken = new InternalCancellationTokenAdapter(cancellationToken);
         Object result = connection.run(modelIdentifier.getName(), buildCancellationToken, providerParameters);
         return new ProviderBuildResult<>(result);
-    }
-
-    /**
-     * This is used by consumers 1.8-rc-1 to 2.0
-     */
-    @Override
-    public <T> BuildResult<T> run(org.gradle.tooling.internal.protocol.InternalBuildAction<T> action, BuildParameters operationParameters) throws org.gradle.tooling.internal.protocol.BuildExceptionVersion1, InternalUnsupportedBuildArgumentException, IllegalStateException {
-        throw unsupportedConnectionException();
     }
 
     /**
