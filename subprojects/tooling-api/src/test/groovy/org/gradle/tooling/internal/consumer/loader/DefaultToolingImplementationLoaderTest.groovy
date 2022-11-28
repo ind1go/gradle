@@ -200,7 +200,7 @@ class TestR22Connection extends TestR21Connection implements StoppableConnection
     }
 }
 
-class TestR21Connection implements InternalCancellableConnection {
+class TestR21Connection extends TestR12Connection implements InternalCancellableConnection {
     @Override
     BuildResult<?> getModel(ModelIdentifier modelIdentifier, InternalCancellationToken cancellationToken, BuildParameters operationParameters)
         throws BuildExceptionVersion1, InternalUnsupportedModelException, InternalUnsupportedBuildArgumentException, IllegalStateException {
