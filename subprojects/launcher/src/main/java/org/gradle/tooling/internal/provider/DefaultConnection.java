@@ -66,7 +66,7 @@ import java.util.List;
 
 @SuppressWarnings("deprecation")
 public class DefaultConnection implements ConnectionVersion4,
-    ConfigurableConnection, org.gradle.tooling.internal.protocol.ModelBuilder, org.gradle.tooling.internal.protocol.InternalBuildActionExecutor, InternalCancellableConnection, InternalParameterAcceptingConnection,
+    ConfigurableConnection, org.gradle.tooling.internal.protocol.InternalBuildActionExecutor, InternalCancellableConnection, InternalParameterAcceptingConnection,
     StoppableConnection, InternalTestExecutionConnection, InternalPhasedActionConnection, InternalInvalidatableVirtualFileSystemConnection, InternalStopWhenIdleConnection {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultConnection.class);

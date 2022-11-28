@@ -51,7 +51,6 @@ import org.gradle.tooling.internal.protocol.InternalParameterAcceptingConnection
 import org.gradle.tooling.internal.protocol.InternalPhasedAction
 import org.gradle.tooling.internal.protocol.InternalPhasedActionConnection
 import org.gradle.tooling.internal.protocol.InternalUnsupportedModelException
-import org.gradle.tooling.internal.protocol.ModelBuilder
 import org.gradle.tooling.internal.protocol.ModelIdentifier
 import org.gradle.tooling.internal.protocol.PhasedActionResultListener
 import org.gradle.tooling.internal.protocol.ProjectVersion3
@@ -124,7 +123,6 @@ class DefaultToolingImplementationLoaderTest extends Specification {
         TestR10M3Connection.class | _
         TestR10M8Connection.class | _
         TestR12Connection.class   | _
-        TestR16Connection.class   | _
         TestR18Connection.class   | _
         TestR21Connection.class   | _
         TestR22Connection.class   | _
@@ -226,23 +224,13 @@ class TestR21Connection extends TestR18Connection implements InternalCancellable
     }
 }
 
-class TestR18Connection extends TestR16Connection implements InternalBuildActionExecutor {
+class TestR18Connection implements InternalBuildActionExecutor {
     def <T> BuildResult<T> run(InternalBuildAction<T> action, BuildParameters operationParameters) throws BuildExceptionVersion1, InternalUnsupportedBuildArgumentException, IllegalStateException {
         throw new UnsupportedOperationException()
     }
 
     ConnectionMetaDataVersion1 getMetaData() {
         return new TestMetaData('1.8')
-    }
-}
-
-class TestR16Connection extends TestR12Connection implements ModelBuilder {
-    BuildResult<Object> getModel(ModelIdentifier modelIdentifier, BuildParameters operationParameters) throws UnsupportedOperationException, IllegalStateException {
-        throw new UnsupportedOperationException()
-    }
-
-    ConnectionMetaDataVersion1 getMetaData() {
-        return new TestMetaData('1.6')
     }
 }
 
