@@ -118,7 +118,6 @@ class DefaultToolingImplementationLoaderTest extends Specification {
         TestR10M3Connection.class | _
         TestR10M8Connection.class | _
         TestR12Connection.class   | _
-        TestR18Connection.class   | _
         TestR21Connection.class   | _
         TestR22Connection.class   | _
     }
@@ -201,7 +200,7 @@ class TestR22Connection extends TestR21Connection implements StoppableConnection
     }
 }
 
-class TestR21Connection extends TestR18Connection implements InternalCancellableConnection {
+class TestR21Connection implements InternalCancellableConnection {
     @Override
     BuildResult<?> getModel(ModelIdentifier modelIdentifier, InternalCancellationToken cancellationToken, BuildParameters operationParameters)
         throws BuildExceptionVersion1, InternalUnsupportedModelException, InternalUnsupportedBuildArgumentException, IllegalStateException {
@@ -212,10 +211,6 @@ class TestR21Connection extends TestR18Connection implements InternalCancellable
     def <T> BuildResult<T> run(InternalBuildAction<T> action, InternalCancellationToken cancellationToken, BuildParameters operationParameters)
         throws BuildExceptionVersion1, InternalUnsupportedBuildArgumentException, InternalBuildActionFailureException, IllegalStateException {
         throw new UnsupportedOperationException();
-    }
-
-    ConnectionMetaDataVersion1 getMetaData() {
-        return new TestMetaData('2.1')
     }
 }
 

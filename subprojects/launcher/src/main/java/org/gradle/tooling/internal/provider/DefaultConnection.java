@@ -139,15 +139,6 @@ public class DefaultConnection implements ConnectionVersion4,
         CompositeStoppable.stoppable(services).stop();
     }
 
-
-    /**
-     * This is used by consumers 1.6-rc-1 to 2.0
-     */
-    @Override
-    public BuildResult<?> getModel(ModelIdentifier modelIdentifier, BuildParameters operationParameters) throws UnsupportedOperationException, IllegalStateException {
-        throw unsupportedConnectionException();
-    }
-
     /**
      * This is used by consumers 2.1-rc-1 and later
      */
