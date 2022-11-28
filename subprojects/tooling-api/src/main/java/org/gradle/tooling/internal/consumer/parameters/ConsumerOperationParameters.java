@@ -47,8 +47,7 @@ import java.util.function.Function;
 /**
  * This is used via reflection from {@code ProviderOperationParameters}.
  */
-@SuppressWarnings("deprecation")
-public class ConsumerOperationParameters implements org.gradle.tooling.internal.protocol.BuildParametersVersion1, BuildParameters {
+public class ConsumerOperationParameters implements BuildParameters {
 
     public static Builder builder() {
         return new Builder();
@@ -404,7 +403,6 @@ public class ConsumerOperationParameters implements org.gradle.tooling.internal.
         return arguments;
     }
 
-    @Override
     public List<String> getTasks() {
         return tasks;
     }
